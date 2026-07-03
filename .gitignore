@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds / outputs
+dist/
+build/
+release/
+.output/
+.vite/
+*.tsbuildinfo
+
+# vendored Proton SDK build artifacts
+proton-sdk/**/dist/
+proton-sdk/cli/release/
+*.bun-build
+.wrangler/
+
+# scratch spikes (superseded by web/)
+browser-spike/
+poc/
+
+# vendored Proton SDK: only client/js + incubating/account/js are needed to build the app
+proton-sdk/cli/
+proton-sdk/config/
+proton-sdk/**/*.test.ts
+proton-sdk/**/*.spec.ts
+proton-sdk/**/__mocks__/
+
+# generated album data (kept in Proton, not in git)
+data/
+
+# logs / env / editor
+*.log
+npm-debug.log*
+.env
+.env.local
+.DS_Store
+.vscode/
+.idea/
