@@ -38,10 +38,10 @@ const meta = computed(() => {
         from-black/80 via-black/30 to-transparent p-3 pt-10
       "
     >
-      <div class="text-lg/tight font-bold text-white">
+      <div class="text-lg/tight font-medium text-white">
         {{ album.name }}
       </div>
-      <div class="mt-0.5 text-xs text-white/75">
+      <div class="mt-0.5 text-sm text-white/75">
         {{ meta }}
       </div>
     </div>

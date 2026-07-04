@@ -46,7 +46,7 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
     >
       <div
         class="
-          flex flex-1 flex-col justify-center gap-10
+          flex flex-1 flex-col justify-center gap-10 pb-20
           lg:gap-12
         "
       >
@@ -77,7 +77,7 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
             :disabled="busy"
             class="
               group inline-flex w-fit items-center gap-2.5 rounded-sm bg-accent
-              px-6 py-3 text-base font-bold text-black transition
+              px-6 py-3 text-base font-medium text-black transition
               hover:bg-accent/90
               disabled:opacity-40
             "
@@ -93,7 +93,7 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
           </button>
           <p
             class="
-              text-xs text-neutral-400
+              text-sm text-neutral-400
               dark:text-neutral-500
             "
           >
@@ -110,11 +110,15 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
       <AppFooter class="mt-10" />
     </div>
 
-    <!-- Right: the features as stops along a winding trail (hidden on small screens) -->
+    <!-- Right: the features as stops along a winding trail (hidden on small screens).
+         Negative right margin bleeds the backdrop past the centered max-w-7xl container to the
+         viewport's right edge: -mr-8 cancels the container's px-8 while it's full-width (md–xl);
+         from xl up (where max-w-7xl caps), calc(38rem-50vw) also spans the centering gutter. -->
     <div
       class="
         hidden overflow-hidden bg-neutral-100
-        md:flex md:items-center
+        md:-mr-8 md:flex md:items-center
+        xl:mr-[calc(38rem-50vw)]
         dark:bg-neutral-900/50
       "
     >
@@ -143,8 +147,8 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
           <span
             class="
               absolute z-10 flex size-8 -translate-1/2 items-center
-              justify-center rounded-full bg-accent text-sm font-bold text-black
-              ring-4 ring-neutral-100
+              justify-center rounded-full bg-accent text-sm font-medium
+              text-black ring-4 ring-neutral-100
               dark:ring-neutral-900
             "
             :style="{ left: `${points[i]!.x}%`, top: `${points[i]!.y}%` }"
@@ -158,12 +162,12 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
               maxWidth: `calc(${100 - points[i]!.x}% - 4rem)`,
             }"
           >
-            <div class="text-sm font-bold">
+            <div class="text-sm font-medium">
               {{ f.title }}
             </div>
             <div
               class="
-                mt-0.5 text-xs/relaxed text-neutral-500
+                mt-0.5 text-sm/relaxed text-neutral-500
                 dark:text-neutral-400
               "
             >

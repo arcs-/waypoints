@@ -159,7 +159,7 @@ function tileSpan(i: number): string {
         />
       </RouterLink>
       <div class="min-w-0">
-        <h1 class="truncate text-2xl font-bold tracking-tight">
+        <h1 class="truncate text-2xl font-medium tracking-tight">
           {{ manifest.title }}
         </h1>
         <div class="mt-0.5 text-sm text-neutral-500">
@@ -222,8 +222,8 @@ function tileSpan(i: number): string {
           />
           <span
             class="
-              rounded-full bg-accent px-2.5 py-1 text-xs font-bold
-              tracking-wider text-black uppercase
+              rounded-full bg-accent px-2.5 py-1 text-sm font-medium
+              tracking-wider text-black
             "
           >{{ dateTag(0) }}</span>
         </div>
@@ -253,13 +253,13 @@ function tileSpan(i: number): string {
           <span
             v-if="isNewDay(i)"
             class="
-              rounded-full bg-accent px-2.5 py-1 text-xs font-bold
-              tracking-wider text-black uppercase
+              rounded-full bg-accent px-2.5 py-1 text-sm font-medium
+              tracking-wider text-black
             "
           >{{ dateTag(i) }}</span>
           <span
             v-if="legDist[i]"
-            class="text-xs text-neutral-500"
+            class="text-sm text-neutral-500"
           >↓ {{ legDist[i] }}</span>
         </div>
 
@@ -279,14 +279,14 @@ function tileSpan(i: number): string {
               :value="displayTitle(stop)"
               :aria-label="t('album.stopTitle')"
               class="
-                w-full border-b border-accent bg-transparent text-xl font-bold
+                w-full border-b border-accent bg-transparent text-xl font-medium
                 tracking-tight outline-none
               "
               @blur="commitTitle(stop, $event)"
               @keydown.enter="($event.target as HTMLInputElement).blur()"
             >
             <template v-else>
-              <h2 class="truncate text-xl font-bold tracking-tight">
+              <h2 class="truncate text-xl font-medium tracking-tight">
                 {{ displayTitle(stop) }}
               </h2>
               <button
@@ -303,7 +303,7 @@ function tileSpan(i: number): string {
               </button>
             </template>
           </div>
-          <p class="mt-1 text-[11px] tracking-wider text-neutral-500 uppercase">
+          <p class="mt-1 text-sm tracking-wider text-neutral-500 uppercase">
             {{ metaLine(stop) }}
           </p>
 
@@ -323,7 +323,7 @@ function tileSpan(i: number): string {
           <button
             v-else
             class="
-              mt-1 text-xs text-neutral-500 opacity-0 transition
+              mt-1 text-sm text-neutral-500 opacity-0 transition
               group-hover/stop:opacity-100
               hover:text-accent
               focus-visible:opacity-100
@@ -391,8 +391,8 @@ function tileSpan(i: number): string {
                   v-else-if="p.motionUid"
                   class="
                     pointer-events-none absolute top-1.5 right-1.5 flex
-                    items-center gap-1 rounded-full bg-black/45 px-0.5 py-0.5
-                    text-[10px] font-bold tracking-wide text-white uppercase
+                    items-center gap-1 rounded-full bg-black/45 p-0.5
+                    text-xs font-medium tracking-wide text-white uppercase
                   "
                 >
                   <IconLivePhoto class="size-3" />

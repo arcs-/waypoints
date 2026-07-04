@@ -15,7 +15,7 @@ function onChange(e: Event) {
     :aria-label="t('controls.language')"
     :title="t('controls.language')"
     class="
-      cursor-pointer border-0 bg-transparent p-1 text-xs font-bold
+      cursor-pointer border-0 bg-transparent p-1 text-sm font-medium
       text-neutral-500 uppercase transition-colors
       hover:text-accent
     "

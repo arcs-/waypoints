@@ -7,7 +7,7 @@ const { t } = useI18n();
 <template>
   <footer
     class="
-      flex items-center gap-2.5 text-xs text-neutral-400
+      flex items-center gap-2.5 text-sm text-neutral-400
       dark:text-neutral-500
     "
   >

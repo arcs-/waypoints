@@ -126,7 +126,7 @@ const groups = computed(() => {
       >
         <h2
           class="
-            mb-6 text-sm font-bold tracking-widest text-neutral-500 uppercase
+            mb-6 text-sm font-medium tracking-widest text-neutral-500 uppercase
             sm:mb-10
           "
         >

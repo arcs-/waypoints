@@ -173,7 +173,7 @@ onBeforeUnmount(() => map?.remove());
 .mm-dot img { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; object-position: center; display: block; }
 .mm-badge {
   position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
-  border-radius: 9999px; background: #111; color: #fff; font-size: 11px; font-weight: 700;
+  border-radius: 9999px; background: #111; color: #fff; font-size: 12px; font-weight: 500;
   display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-accent);
 }
 

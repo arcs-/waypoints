@@ -15,7 +15,7 @@ onMounted(() => (document.title = `${t('notFound.title')} · ${APP_NAME}`));
     "
   >
     <AppLogo class="size-10 text-accent" />
-    <div class="text-6xl font-bold tracking-tight tabular-nums">
+    <div class="text-6xl font-medium tracking-tight tabular-nums">
       404
     </div>
     <p
@@ -29,7 +29,7 @@ onMounted(() => (document.title = `${t('notFound.title')} · ${APP_NAME}`));
     <RouterLink
       :to="{ name: 'overview' }"
       class="
-        rounded-sm border-[1.5px] border-current px-4 py-2 font-bold
+        rounded-sm border-[1.5px] border-current px-4 py-2 font-medium
         transition-colors
         hover:border-accent hover:bg-accent hover:text-black
       "

@@ -4,6 +4,7 @@ import { useThumbnails } from '@/composables/useThumbnails';
 import { useProton } from '@/composables/useProton';
 import { useI18n } from 'vue-i18n';
 import { useMotion } from '@/composables/useMotion';
+import { playableVideoUrl } from '@/lib/videoUrl';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconDownload from '@/components/icons/IconDownload.vue';
 import type { Photo } from '@/lib/types';
@@ -25,6 +26,13 @@ const liveFailed = ref(false); // true if the motion clip can't be decoded (e.g.
 const loading = ref(false);
 const downloading = ref(false);
 const zoomed = ref(false);
+
+function vlog(tag: string, e: Event) {
+  const v = e.target as HTMLVideoElement;
+  console.info(`[wp] live <${tag}> rs=${v.readyState} err=${v.error?.code ?? '-'} ${v.videoWidth}x${v.videoHeight} net=${v.networkState}`);
+}
+function onLiveCanPlay(e: Event) { vlog('canplay', e); (e.target as HTMLVideoElement).play().catch(() => { /* ignore */ }); }
+function onLiveError(e: Event) { vlog('error', e); liveFailed.value = true; }
 
 // Click to zoom one step into the clicked point; while zoomed, the origin follows the cursor
 // so moving the mouse pans around the image. Click again to zoom back out.
@@ -101,7 +109,8 @@ async function show() {
   if (p.isVideo) {
     try {
       const blob = await fetchFull(p.nodeUid);
-      if (current.value?.nodeUid === p.nodeUid) videoUrl.value = URL.createObjectURL(blob);
+      const src = await playableVideoUrl(blob); // fast-start .mov so Firefox can play it
+      if (current.value?.nodeUid === p.nodeUid) videoUrl.value = src;
     } catch { /* ignore */ } finally {
       if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
@@ -215,7 +224,7 @@ function caption(p: Photo | null): string {
         v-if="current?.motionUid && !current?.isVideo"
         :class="livePlaying ? 'text-accent' : 'hover:text-accent'"
         class="
-          flex items-center gap-1 text-xs font-bold tracking-wide uppercase
+          flex items-center gap-1 text-sm font-medium tracking-wide uppercase
         "
         :aria-label="livePlaying ? t('lightbox.showStill') : t('lightbox.playLive')"
         :title="t('lightbox.livePhoto')"
@@ -304,8 +313,12 @@ function caption(p: Photo | null): string {
           playsinline
           :aria-label="t('lightbox.liveMotion')"
           class="absolute inset-0 size-full rounded-sm object-contain"
-          @canplay="($event.target as HTMLVideoElement).play().catch(() => {})"
-          @error="liveFailed = true"
+          @loadedmetadata="vlog('loadedmetadata', $event)"
+          @canplay="onLiveCanPlay"
+          @playing="vlog('playing', $event)"
+          @stalled="vlog('stalled', $event)"
+          @suspend="vlog('suspend', $event)"
+          @error="onLiveError"
         >
           <track kind="captions">
         </video>
@@ -323,7 +336,7 @@ function caption(p: Photo | null): string {
         />
         <span class="text-sm">{{ current?.isVideo ? t('lightbox.loadingVideo') : current?.isHeic ? t('lightbox.decodingHeic') : t('lightbox.decrypting') }}</span>
       </div>
-      <div class="text-xs text-white/60 tabular-nums">
+      <div class="text-sm text-white/60 tabular-nums">
         {{ (modelValue ?? 0) + 1 }} / {{ photos.length }}<span v-if="caption(current)"> · {{ caption(current) }}</span>
       </div>
     </div>
