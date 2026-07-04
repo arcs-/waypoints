@@ -2,7 +2,7 @@
 
 A private, browser-only view of my [Proton Photos](https://proton.me/drive) albums:
 each trip becomes a timeline of stops plotted on a map. Lives at
-[trips.stillh.art](https://trips.stillh.art).
+[waypoints.stillh.art](https://waypoints.stillh.art).
 
 ## Constraints
 
@@ -40,6 +40,40 @@ cd web
 cp .env.example .env   # then set VITE_MAPTILER_KEY (see https://www.maptiler.com/)
 bun install
 bun run dev      # Vite dev server
-bun run build    # type-check-clean production build
+bun run build    # production build → web/dist
 bun run lint     # ESLint
 ```
+
+## Deploy
+
+Hosted on **Cloudflare Pages** at [waypoints.stillh.art](https://waypoints.stillh.art).
+Config lives in `web/wrangler.toml`; `_headers` (CSP) and `_redirects` (SPA fallback for the
+history-mode router) are in `web/public/` and Vite copies them into `dist/`.
+
+**Cloudflare build settings** (Git integration):
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `web` |
+| Build command | `bun run build` |
+| Output directory | `dist` |
+| Environment variable | `VITE_MAPTILER_KEY` = your MapTiler key |
+
+`VITE_MAPTILER_KEY` must be set in the Pages build environment — Vite inlines it into the
+bundle at build time (it's a public client key, so this is expected).
+
+Or deploy from the CLI:
+
+```sh
+cd web
+bun run build
+bunx wrangler pages deploy   # uses web/wrangler.toml
+```
+
+**Two one-time steps after the first deploy:**
+
+1. **Custom domain** — in the Pages project, add `waypoints.stillh.art`. Since `stillh.art` is
+   already on this Cloudflare account, the DNS `CNAME` is created for you.
+2. **MapTiler origin lock** — add `https://waypoints.stillh.art` to the key's allowed origins in
+   the MapTiler dashboard (add `http://localhost:5174` too for local dev, or use a separate
+   unrestricted dev key). Without it, tiles and geocoding are rejected as "unknown origin".
