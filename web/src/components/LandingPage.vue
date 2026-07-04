@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useProton } from '@/composables/useProton';
 import { APP_NAME } from '@/lib/app';
 import AppLogo from '@/components/common/AppLogo.vue';
+import AppFooter from '@/components/common/AppFooter.vue';
 import IconArrowRight from '@/components/icons/IconArrowRight.vue';
 
 const { t } = useI18n();
@@ -36,69 +37,77 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
       md:grid-cols-2
     "
   >
-    <!-- Left: pitch + CTA -->
+    <!-- Left: pitch + CTA, with a footer pinned to the bottom -->
     <div
       class="
-        flex flex-col justify-center gap-10 py-16
-        lg:gap-12 lg:pr-14
+        flex flex-col py-16
+        lg:pr-14
       "
     >
-      <AppLogo class="size-9 text-accent" />
+      <div
+        class="
+          flex flex-1 flex-col justify-center gap-10
+          lg:gap-12
+        "
+      >
+        <AppLogo class="size-9 text-accent" />
 
-      <div class="flex flex-col gap-4">
-        <h1
-          class="
-            text-4xl tracking-tight
-            sm:text-5xl
-            lg:text-6xl
-          "
-        >
-          {{ APP_NAME }}
-        </h1>
-        <p
-          class="
-            max-w-md text-lg/relaxed text-neutral-500
-            dark:text-neutral-400
-          "
-        >
-          {{ t('landing.description') }}
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-4">
-        <button
-          :disabled="busy"
-          class="
-            group inline-flex w-fit items-center gap-2.5 rounded-sm bg-accent
-            px-6 py-3 text-base font-bold text-black transition
-            hover:bg-accent/90
-            disabled:opacity-40
-          "
-          @click="login"
-        >
-          {{ busy ? t('landing.signingIn') : t('landing.signIn') }}
-          <IconArrowRight
+        <div class="flex flex-col gap-4">
+          <h1
             class="
-              size-4 transition-transform
-              group-hover:translate-x-0.5
+              text-4xl tracking-tight
+              sm:text-5xl
+              lg:text-6xl
             "
-          />
-        </button>
-        <p
-          class="
-            text-xs text-neutral-400
-            dark:text-neutral-500
-          "
-        >
-          {{ t('landing.privacy') }}
-        </p>
-        <p
-          v-if="error"
-          class="text-sm text-red-600"
-        >
-          {{ error }}
-        </p>
+          >
+            {{ APP_NAME }}
+          </h1>
+          <p
+            class="
+              max-w-md text-lg/relaxed text-neutral-500
+              dark:text-neutral-400
+            "
+          >
+            {{ t('landing.description') }}
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-4">
+          <button
+            :disabled="busy"
+            class="
+              group inline-flex w-fit items-center gap-2.5 rounded-sm bg-accent
+              px-6 py-3 text-base font-bold text-black transition
+              hover:bg-accent/90
+              disabled:opacity-40
+            "
+            @click="login"
+          >
+            {{ busy ? t('landing.signingIn') : t('landing.signIn') }}
+            <IconArrowRight
+              class="
+                size-4 transition-transform
+                group-hover:translate-x-0.5
+              "
+            />
+          </button>
+          <p
+            class="
+              text-xs text-neutral-400
+              dark:text-neutral-500
+            "
+          >
+            {{ t('landing.privacy') }}
+          </p>
+          <p
+            v-if="error"
+            class="text-sm text-red-600"
+          >
+            {{ error }}
+          </p>
+        </div>
       </div>
+      <AppFooter class="mt-10" />
     </div>
 
     <!-- Right: the features as stops along a winding trail (hidden on small screens) -->

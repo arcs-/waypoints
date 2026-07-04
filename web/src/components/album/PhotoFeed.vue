@@ -181,7 +181,7 @@ function tileSpan(i: number): string {
           v-if="protonUrl"
           :href="protonUrl"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           class="
             flex items-center border-0 p-1 text-neutral-500 transition-colors
             hover:text-accent
@@ -333,68 +333,72 @@ function tileSpan(i: number): string {
             {{ t('album.addNote') }}
           </button>
 
-          <div
-            class="
-              mt-4 grid grid-flow-dense auto-rows-36 grid-cols-2 gap-2
-              sm:auto-rows-48 sm:grid-cols-3 sm:gap-3
-              lg:auto-rows-56 lg:grid-cols-4
-            "
-          >
-            <AlbumThumb
-              v-for="(p, j) in stop.photos"
-              :key="p.id"
-              :node-uid="p.nodeUid"
-              role="button"
-              tabindex="0"
-              :aria-label="p.isVideo
-                ? t('album.viewVideo', { j: j + 1, n: stop.photos.length })
-                : t('album.viewPhoto', { j: j + 1, n: stop.photos.length })"
-              :class="['group h-full cursor-zoom-in', tileSpan(j)]"
-              @click="lightbox = flat.indexOf(p)"
-              @keydown.enter.prevent="lightbox = flat.indexOf(p)"
-              @keydown.space.prevent="lightbox = flat.indexOf(p)"
-              @mouseenter="onTileEnter(p)"
-              @mouseleave="onTileLeave(p)"
-              @focus="onTileEnter(p)"
-              @blur="onTileLeave(p)"
+          <!-- @container + cqw auto-rows: row height tracks the grid's width, so the mosaic
+               tiles scale vertically as well as horizontally while spans still line up. -->
+          <div class="@container mt-4">
+            <div
+              class="
+                grid grid-flow-dense auto-rows-[52cqw] grid-cols-2 gap-2
+                sm:auto-rows-[34cqw] sm:grid-cols-3 sm:gap-3
+                lg:auto-rows-[26cqw] lg:grid-cols-4
+              "
             >
-              <!-- Live Photo motion, played on hover -->
-              <video
-                v-if="p.motionUid && motionHoverId === p.id && motionSrc"
-                :src="motionSrc"
-                autoplay
-                muted
-                loop
-                playsinline
-                class="absolute inset-0 size-full object-cover"
-              />
-              <span
-                v-if="p.isVideo"
-                class="
-                  pointer-events-none absolute inset-0 grid place-items-center
-                "
+              <AlbumThumb
+                v-for="(p, j) in stop.photos"
+                :key="p.id"
+                :node-uid="p.nodeUid"
+                role="button"
+                tabindex="0"
+                :aria-label="p.isVideo
+                  ? t('album.viewVideo', { j: j + 1, n: stop.photos.length })
+                  : t('album.viewPhoto', { j: j + 1, n: stop.photos.length })"
+                :class="['group h-full cursor-zoom-in', tileSpan(j)]"
+                @click="lightbox = flat.indexOf(p)"
+                @keydown.enter.prevent="lightbox = flat.indexOf(p)"
+                @keydown.space.prevent="lightbox = flat.indexOf(p)"
+                @mouseenter="onTileEnter(p)"
+                @mouseleave="onTileLeave(p)"
+                @focus="onTileEnter(p)"
+                @blur="onTileLeave(p)"
               >
+                <!-- Live Photo motion, played on hover -->
+                <video
+                  v-if="p.motionUid && motionHoverId === p.id && motionSrc"
+                  :src="motionSrc"
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  class="absolute inset-0 size-full object-cover"
+                  @canplay="($event.target as HTMLVideoElement).play().catch(() => {})"
+                />
                 <span
+                  v-if="p.isVideo"
                   class="
-                    grid size-11 place-items-center rounded-full bg-black/45
-                    text-white
+                    pointer-events-none absolute inset-0 grid place-items-center
                   "
                 >
-                  <IconPlay class="size-5" />
+                  <span
+                    class="
+                      grid size-11 place-items-center rounded-full bg-black/45
+                      text-white
+                    "
+                  >
+                    <IconPlay class="size-5" />
+                  </span>
                 </span>
-              </span>
-              <span
-                v-else-if="p.motionUid"
-                class="
-                  pointer-events-none absolute top-1.5 left-1.5 flex
-                  items-center gap-1 rounded-full bg-black/45 px-1.5 py-0.5
-                  text-[10px] font-bold tracking-wide text-white uppercase
-                "
-              >
-                <IconLivePhoto class="size-3" />
-                {{ t('album.live') }}
-              </span>
-            </AlbumThumb>
+                <span
+                  v-else-if="p.motionUid"
+                  class="
+                    pointer-events-none absolute top-1.5 right-1.5 flex
+                    items-center gap-1 rounded-full bg-black/45 px-0.5 py-0.5
+                    text-[10px] font-bold tracking-wide text-white uppercase
+                  "
+                >
+                  <IconLivePhoto class="size-3" />
+                </span>
+              </AlbumThumb>
+            </div>
           </div>
         </section>
       </li>

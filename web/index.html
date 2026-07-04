@@ -3,9 +3,64 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Waypoints</title>
+    <meta
+      name="description"
+      content="Reads a Proton Photos album in the browser, decrypts it locally, and lays the geotagged photos out on a map as a timeline of stops."
+    />
+    <meta name="author" content="Patrick Stillhart" />
+    <meta name="application-name" content="Waypoints" />
+    <meta name="apple-mobile-web-app-title" content="Waypoints" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Privacy: never leak the page URL as a Referer to map-tile / geocode / image hosts. -->
+    <meta name="referrer" content="no-referrer" />
+
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+    <link rel="canonical" href="https://trips.stillh.art/" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>Waypoints</title>
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Waypoints" />
+    <meta property="og:title" content="Waypoints" />
+    <meta
+      property="og:description"
+      content="Reads a Proton Photos album in the browser, decrypts it locally, and lays the geotagged photos out on a map as a timeline of stops."
+    />
+    <meta property="og:url" content="https://trips.stillh.art/" />
+    <meta property="og:image" content="https://trips.stillh.art/favicon.png" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:locale:alternate" content="de" />
+    <meta property="og:locale:alternate" content="fr" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Waypoints" />
+    <meta
+      name="twitter:description"
+      content="Reads a Proton Photos album in the browser, decrypts it locally, and lays the geotagged photos out on a map as a timeline of stops."
+    />
+    <meta name="twitter:image" content="https://trips.stillh.art/favicon.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Waypoints",
+        "url": "https://trips.stillh.art/",
+        "description": "Reads a Proton Photos album in the browser, decrypts it locally, and lays the geotagged photos out on a map as a timeline of stops.",
+        "applicationCategory": "TravelApplication",
+        "operatingSystem": "Web",
+        "browserRequirements": "Requires JavaScript",
+        "author": { "@type": "Person", "name": "Patrick Stillhart", "url": "https://stillh.art" }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

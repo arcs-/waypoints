@@ -6,6 +6,7 @@ import LoadingRoute from '@/components/common/LoadingRoute.vue';
 import FullscreenToggle from '@/components/common/FullscreenToggle.vue';
 import ThemeToggle from '@/components/common/ThemeToggle.vue';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
+import AppFooter from '@/components/common/AppFooter.vue';
 import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import IconSignOut from '@/components/icons/IconSignOut.vue';
 import { useI18n } from 'vue-i18n';
@@ -75,7 +76,7 @@ const groups = computed(() => {
         <a
           :href="PROTON_PHOTOS_URL"
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
           :aria-label="t('controls.openProton')"
           :title="t('controls.openInProton')"
           class="
@@ -147,5 +148,12 @@ const groups = computed(() => {
         </ul>
       </section>
     </div>
+
+    <AppFooter
+      class="
+        mt-16
+        sm:mt-24
+      "
+    />
   </div>
 </template>

@@ -52,8 +52,8 @@ export default {
   },
   lightbox: {
     viewer: 'Fotoanzeige',
-    close: 'Schließen',
-    closeViewer: 'Fotoanzeige schließen',
+    close: 'Schliessen',
+    closeViewer: 'Fotoanzeige schliessen',
     previous: 'Zurück',
     next: 'Weiter',
     download: 'Herunterladen',
@@ -70,10 +70,16 @@ export default {
     loadingVideo: 'Video wird geladen…',
     decodingHeic: 'HEIC wird dekodiert…',
     decrypting: 'Wird entschlüsselt…',
+    zoomIn: 'Vergrössern',
+    zoomOut: 'Verkleinern',
   },
   notFound: {
     message: 'Diese Reise hat eine falsche Abzweigung genommen. Die gesuchte Seite gibt es nicht.',
     back: 'Zurück zu allen Reisen',
     title: 'Nicht gefunden',
+  },
+  footer: {
+    author: 'von Patrick',
+    source: 'Quellcode',
   },
 };

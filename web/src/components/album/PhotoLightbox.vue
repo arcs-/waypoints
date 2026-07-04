@@ -21,13 +21,34 @@ const url = ref<string | null>(null);
 const videoUrl = ref<string | null>(null);
 const liveSrc = ref<string | null>(null);
 const livePlaying = ref(true);
+const liveFailed = ref(false); // true if the motion clip can't be decoded (e.g. HEVC) → keep still
 const loading = ref(false);
 const downloading = ref(false);
+const zoomed = ref(false);
+
+// Click to zoom one step into the clicked point; while zoomed, the origin follows the cursor
+// so moving the mouse pans around the image. Click again to zoom back out.
+const zoomOrigin = ref('50% 50%');
+function setZoomOrigin(e: MouseEvent) {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+  const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+  zoomOrigin.value = `${x}% ${y}%`;
+}
+function onZoomClick(e: MouseEvent) {
+  if (zoomed.value) { zoomed.value = false; return; }
+  setZoomOrigin(e);
+  zoomed.value = true;
+}
+function onZoomMove(e: MouseEvent) {
+  if (zoomed.value) setZoomOrigin(e);
+}
 
 async function toggleLive() {
   const p = current.value;
   if (!p?.motionUid) return;
   if (livePlaying.value) { livePlaying.value = false; return; }
+  liveFailed.value = false;
   if (!liveSrc.value) liveSrc.value = await motionUrl(p.motionUid);
   livePlaying.value = !!liveSrc.value;
 }
@@ -74,7 +95,7 @@ function preloadAround(i: number) {
 
 async function show() {
   const p = current.value;
-  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false;
+  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false; liveFailed.value = false; zoomed.value = false;
   if (!p) return;
   loading.value = true;
   if (p.isVideo) {
@@ -85,18 +106,24 @@ async function show() {
       if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
   } else if (p.isHeic) {
-    // Browsers can't render HEIC — decode the full original to JPEG for a proper preview.
+    // Show the decoded thumbnail first (already cached from the grid — instant, no new
+    // download), then upgrade to the full-res decode in the background.
+    const thumb = await thumbUrl(p.nodeUid);
+    if (current.value?.nodeUid === p.nodeUid && thumb) { url.value = thumb; loading.value = false; }
     try {
-      const u = await heicUrl(p.nodeUid);
-      if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+      const full = await heicUrl(p.nodeUid);
+      if (current.value?.nodeUid === p.nodeUid) { url.value = full; loading.value = false; }
     } catch {
-      // fall back to the (small) SDK thumbnail if decoding fails
-      const u = await thumbUrl(p.nodeUid);
-      if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+      if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
   } else {
     const u = await thumbUrl(p.nodeUid);
     if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+  }
+  // Live Photo: auto-play its motion clip once the still is up.
+  if (p.motionUid && !p.isVideo) {
+    const src = await motionUrl(p.motionUid);
+    if (current.value?.nodeUid === p.nodeUid) { liveSrc.value = src; livePlaying.value = !!src; }
   }
   if (props.modelValue != null) preloadAround(props.modelValue);
 }
@@ -248,24 +275,41 @@ function caption(p: Photo | null): string {
       >
         <track kind="captions">
       </video>
-      <video
-        v-else-if="livePlaying && liveSrc"
-        :src="liveSrc"
-        autoplay
-        muted
-        loop
-        playsinline
-        :aria-label="t('lightbox.liveMotion')"
-        class="max-h-[80vh] max-w-[92vw] rounded-sm"
-      >
-        <track kind="captions">
-      </video>
-      <img
+      <!-- Still is the base; the Live motion clip overlays it and only shows once it actually
+           plays (iPhone clips are HEVC and often unplayable — the still stays put if so). -->
+      <!-- Click to zoom one step in / out. -->
+      <button
         v-else-if="url"
-        :src="url"
-        :alt="caption(current) ? t('lightbox.photoTaken', { date: caption(current) }) : t('lightbox.photo')"
-        class="max-h-[80vh] max-w-[92vw] rounded-sm object-contain"
+        type="button"
+        :aria-label="zoomed ? t('lightbox.zoomOut') : t('lightbox.zoomIn')"
+        class="
+          relative border-0 bg-transparent p-0 transition-transform duration-200
+        "
+        :class="zoomed ? 'scale-[2.2] cursor-zoom-out' : 'cursor-zoom-in'"
+        :style="{ transformOrigin: zoomOrigin }"
+        @click.stop="onZoomClick"
+        @mousemove="onZoomMove"
       >
+        <img
+          :src="url"
+          :alt="caption(current) ? t('lightbox.photoTaken', { date: caption(current) }) : t('lightbox.photo')"
+          class="block max-h-[80vh] max-w-[92vw] rounded-sm object-contain"
+        >
+        <video
+          v-if="livePlaying && liveSrc && !liveFailed"
+          :src="liveSrc"
+          autoplay
+          muted
+          loop
+          playsinline
+          :aria-label="t('lightbox.liveMotion')"
+          class="absolute inset-0 size-full rounded-sm object-contain"
+          @canplay="($event.target as HTMLVideoElement).play().catch(() => {})"
+          @error="liveFailed = true"
+        >
+          <track kind="captions">
+        </video>
+      </button>
       <div
         v-else
         class="flex flex-col items-center gap-4 py-20 text-white/70"
