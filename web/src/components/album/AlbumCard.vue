@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AlbumThumb from './AlbumThumb.vue';
 import type { AlbumRef } from '@/composables/useAlbums';
 
 const props = defineProps<{ album: AlbumRef }>();
+const { t, locale } = useI18n();
+
 const when = computed(() =>
   props.album.date
-    ? new Date(props.album.date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+    ? new Date(props.album.date).toLocaleDateString(locale.value, { month: 'short', year: 'numeric' })
     : '',
 );
+const meta = computed(() => {
+  const count = props.album.photoCount;
+  const parts = [when.value, count ? t('album.photos', { n: count }, count) : ''];
+  return parts.filter(Boolean).join(' · ');
+});
 </script>
 
 <template>
@@ -34,7 +42,7 @@ const when = computed(() =>
         {{ album.name }}
       </div>
       <div class="mt-0.5 text-xs text-white/75">
-        {{ [when, album.photoCount ? album.photoCount + ' photos' : ''].filter(Boolean).join(' · ') }}
+        {{ meta }}
       </div>
     </div>
   </RouterLink>

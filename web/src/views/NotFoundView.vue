@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AppLogo from '@/components/common/AppLogo.vue';
 import { APP_NAME } from '@/lib/app';
 
-onMounted(() => (document.title = `Not found · ${APP_NAME}`));
+const { t } = useI18n();
+onMounted(() => (document.title = `${t('notFound.title')} · ${APP_NAME}`));
 </script>
 
 <template>
@@ -22,7 +24,7 @@ onMounted(() => (document.title = `Not found · ${APP_NAME}`));
         dark:text-neutral-400
       "
     >
-      This trip took a wrong turn — the page you're looking for doesn't exist.
+      {{ t('notFound.message') }}
     </p>
     <RouterLink
       :to="{ name: 'overview' }"
@@ -32,7 +34,7 @@ onMounted(() => (document.title = `Not found · ${APP_NAME}`));
         hover:border-accent hover:bg-accent hover:text-black
       "
     >
-      Back to all trips
+      {{ t('notFound.back') }}
     </RouterLink>
   </div>
 </template>
