@@ -5,22 +5,25 @@ import { useI18n } from 'vue-i18n';
 import PhotoFeed from '@/components/album/PhotoFeed.vue';
 import RouteMap from '@/components/album/RouteMap.vue';
 import LoadingRoute from '@/components/common/LoadingRoute.vue';
+import AppLogo from '@/components/common/AppLogo.vue';
+import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import { useAlbums } from '@/composables/useAlbums';
 import { useAlbumManifest } from '@/composables/useAlbumManifest';
-import { albumProtonUrl } from '@/lib/protonLink';
+import { albumProtonUrl, PROTON_PHOTOS_URL } from '@/lib/protonLink';
 import { APP_NAME } from '@/lib/app';
 import type { Photo } from '@/lib/types';
 
 const props = defineProps<{ slug: string }>();
 const { t } = useI18n();
 const { bySlug, albums } = useAlbums();
-const { manifest, building, progress, total, error, ensure, saveDescription, saveTitle } = useAlbumManifest();
+const { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle } = useAlbumManifest();
 const protonUrl = ref<string | null>(null);
 const hovered = ref<Photo | null>(null);
 const activeStop = ref<number>(0);
 
 const album = computed(() => bySlug(props.slug));
+const isEmpty = computed(() => !!manifest.value && !manifest.value.stops.some((s) => s.photos.length));
 watch([album], () => {
   document.title = album.value ? `${album.value.name} · ${APP_NAME}` : APP_NAME;
   if (!album.value) return;
@@ -60,11 +63,62 @@ onBeforeRouteLeave(() => (building.value ? window.confirm(t('album.leaveWarning'
     :label="t('album.readingMetadata')"
   />
 
+  <!-- Cache-file probe (usually a hit): neutral spinner, no misleading 0/N metadata count. -->
+  <LoadingRoute
+    v-else-if="loading"
+    class="min-h-dvh justify-center"
+    :progress="0"
+    :total="0"
+  />
+
   <div
     v-else-if="error"
     class="p-6 text-neutral-500"
   >
     {{ error }}
+  </div>
+
+  <!-- Album exists but holds no photos yet — same shape as the overview's no-albums state. -->
+  <div
+    v-else-if="isEmpty"
+    class="
+      flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center
+    "
+  >
+    <AppLogo
+      class="
+        size-10 text-neutral-300
+        dark:text-neutral-700
+      "
+    />
+    <p class="mt-2 text-xl font-medium tracking-tight">
+      {{ t('album.emptyTitle') }}
+    </p>
+    <p class="max-w-sm text-sm text-neutral-500">
+      {{ t('album.emptyBody') }}
+    </p>
+    <a
+      :href="protonUrl ?? PROTON_PHOTOS_URL"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="
+        mt-3 inline-flex items-center gap-2 rounded-sm bg-accent px-5 py-2.5
+        text-sm font-medium text-black transition
+        hover:bg-accent/90
+      "
+    >
+      {{ t('controls.openInProton') }}
+      <IconExternalLink class="size-4" />
+    </a>
+    <RouterLink
+      :to="{ name: 'overview' }"
+      class="
+        mt-1 text-sm text-neutral-500
+        hover:text-accent
+      "
+    >
+      {{ t('notFound.back') }}
+    </RouterLink>
   </div>
 
   <!-- Body scrolls the whole page. Mobile: map on top; Desktop: map sticky beside the feed. -->

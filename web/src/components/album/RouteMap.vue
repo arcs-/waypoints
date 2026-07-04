@@ -106,7 +106,10 @@ watch(() => props.activeStop, (i) => {
   if (i === 0 && props.manifest.bounds) {
     map.flyToBounds(props.manifest.bounds, { padding: [50, 50], duration: 0.6 });
   } else if (s?.lat != null) {
-    const closer = Math.min(Math.max(overviewZoom + 2, 11), 13);
+    // ~3 levels closer than the overview, kept in a readable band (13–15) — but never BELOW
+    // the overview: a small tour's fitBounds already sits above the band, and clamping down
+    // would zoom out on scroll.
+    const closer = Math.max(Math.min(Math.max(overviewZoom + 3, 13), 15), overviewZoom);
     map.flyTo([s.lat, s.lng!], closer, { duration: 0.6 });
   }
 });

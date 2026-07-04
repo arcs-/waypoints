@@ -12,9 +12,14 @@ function initial(): Theme {
 }
 
 const theme = ref<Theme>(initial());
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 function apply(t: Theme) {
   document.documentElement.dataset.theme = t;
+  // In the Tauri desktop shell, match the native window (incl. the macOS title bar) to the theme.
+  if (isTauri) {
+    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().setTheme(t)).catch(() => {});
+  }
 }
 apply(theme.value); // run on module load (imported from main.ts) so there's no flash
 

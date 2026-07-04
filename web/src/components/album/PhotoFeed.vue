@@ -10,6 +10,8 @@ import IconPlay from '@/components/icons/IconPlay.vue';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconEdit from '@/components/icons/IconEdit.vue';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
+import RefreshButton from '@/components/common/RefreshButton.vue';
+import { isTauri } from '@/lib/platform';
 import { useI18n } from 'vue-i18n';
 import { useMotion } from '@/composables/useMotion';
 import { fmtDistance, haversineM } from '@/lib/geo';
@@ -93,7 +95,7 @@ function dayNum(i: number): number | null {
 function dateTag(i: number): string {
   const start = props.manifest.stops[i]?.startTime;
   if (!start) return '';
-  const d = new Date(start).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short' });
+  const d = new Date(start).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const n = dayNum(i);
   return n ? `${t('album.day', { n })} · ${d}` : d;
 }
@@ -126,12 +128,14 @@ const summary = computed(() => {
   return parts.join(' · ');
 });
 
-// mosaic: first photo leads as a hero, rest packed densely
+// mosaic: first photo leads as a hero, then large 2x2 features recur on an 11-tile rhythm with
+// wide 2x1s staggered between (11 is coprime to the 2/3/4-column breakpoints, so the pattern
+// never locks to the grid). No tall 1x2 tiles; dense flow backfills the gaps.
 function tileSpan(i: number): string {
   if (i === 0) return 'col-span-2 row-span-2';
-  const m = i % 7;
-  if (m === 3) return 'col-span-2';
-  if (m === 5) return 'row-span-2';
+  const m = i % 11;
+  if (m === 4 || m === 9) return 'col-span-2 row-span-2';
+  if (m === 2 || m === 7) return 'col-span-2';
   return '';
 }
 </script>
@@ -174,9 +178,10 @@ function tileSpan(i: number): string {
           dark:border-neutral-800 dark:bg-neutral-900/70
         "
       >
-        <FullscreenToggle />
+        <RefreshButton v-if="isTauri" />
+        <FullscreenToggle v-if="!isTauri" />
         <ThemeToggle />
-        <LanguageSwitcher />
+        <LanguageSwitcher v-if="!isTauri" />
         <a
           v-if="protonUrl"
           :href="protonUrl"
@@ -303,7 +308,7 @@ function tileSpan(i: number): string {
               </button>
             </template>
           </div>
-          <p class="mt-1 text-sm tracking-wider text-neutral-500 uppercase">
+          <p class="mt-1 text-sm tracking-wider text-neutral-500">
             {{ metaLine(stop) }}
           </p>
 

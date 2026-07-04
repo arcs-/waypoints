@@ -22,7 +22,7 @@ const { t } = useI18n();
     >{{ t('footer.author') }}</a>
     <span aria-hidden="true">·</span>
     <a
-      href="https://github.com/arcs-/memory-lane"
+      href="https://github.com/arcs-/waypoints"
       target="_blank"
       rel="noopener noreferrer"
       class="

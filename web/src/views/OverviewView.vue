@@ -6,9 +6,11 @@ import LoadingRoute from '@/components/common/LoadingRoute.vue';
 import FullscreenToggle from '@/components/common/FullscreenToggle.vue';
 import ThemeToggle from '@/components/common/ThemeToggle.vue';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
+import RefreshButton from '@/components/common/RefreshButton.vue';
 import AppFooter from '@/components/common/AppFooter.vue';
 import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import IconSignOut from '@/components/icons/IconSignOut.vue';
+import { isTauri } from '@/lib/platform';
 import { useI18n } from 'vue-i18n';
 import { useAlbums } from '@/composables/useAlbums';
 import { useProton } from '@/composables/useProton';
@@ -70,9 +72,10 @@ const groups = computed(() => {
           dark:border-neutral-800 dark:bg-neutral-900/70
         "
       >
-        <FullscreenToggle />
+        <RefreshButton v-if="isTauri" />
+        <FullscreenToggle v-if="!isTauri" />
         <ThemeToggle />
-        <LanguageSwitcher />
+        <LanguageSwitcher v-if="!isTauri" />
         <a
           :href="PROTON_PHOTOS_URL"
           target="_blank"
@@ -113,6 +116,40 @@ const groups = computed(() => {
       :total="0"
     />
 
+    <!-- Fresh account: no albums in Proton Photos yet — point the user there. -->
+    <div
+      v-else-if="!albums.length"
+      class="
+        flex min-h-[45vh] flex-col items-center justify-center gap-3 text-center
+      "
+    >
+      <AppLogo
+        class="
+          size-10 text-neutral-300
+          dark:text-neutral-700
+        "
+      />
+      <p class="mt-2 text-xl font-medium tracking-tight">
+        {{ t('overview.emptyTitle') }}
+      </p>
+      <p class="max-w-sm text-sm text-neutral-500">
+        {{ t('overview.emptyBody') }}
+      </p>
+      <a
+        :href="PROTON_PHOTOS_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="
+          mt-3 inline-flex items-center gap-2 rounded-sm bg-accent px-5 py-2.5
+          text-sm font-medium text-black transition
+          hover:bg-accent/90
+        "
+      >
+        {{ t('overview.emptyCta') }}
+        <IconExternalLink class="size-4" />
+      </a>
+    </div>
+
     <div
       v-else
       class="
@@ -126,7 +163,7 @@ const groups = computed(() => {
       >
         <h2
           class="
-            mb-6 text-sm font-medium tracking-widest text-neutral-500 uppercase
+            mb-6 text-sm font-medium tracking-widest text-neutral-500
             sm:mb-10
           "
         >
@@ -150,6 +187,7 @@ const groups = computed(() => {
     </div>
 
     <AppFooter
+      v-if="!isTauri"
       class="
         mt-16
         sm:mt-24

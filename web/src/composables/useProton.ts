@@ -33,8 +33,16 @@ export function useProton() {
     if (!proton.value) return;
     busy.value = true; error.value = null;
     try {
-      await proton.value.auth.authViaWeb((signInUrl: string) => {
-        window.open(signInUrl, '_blank', 'width=520,height=720');
+      await proton.value.auth.authViaWeb(async (signInUrl: string) => {
+        // In the Tauri desktop shell, window.open is swallowed — open Proton's sign-in in the
+        // system browser instead. The SDK polls the fork by selector, so login completing in an
+        // external browser still resolves here. In a real browser, keep the popup.
+        if ('__TAURI_INTERNALS__' in window) {
+          const { openUrl } = await import('@tauri-apps/plugin-opener');
+          await openUrl(signInUrl);
+        } else {
+          window.open(signInUrl, '_blank', 'width=520,height=720');
+        }
       });
       loggedIn.value = true;
     } catch (e) {

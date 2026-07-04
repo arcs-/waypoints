@@ -32,3 +32,15 @@ The only hosts the app ever talks to (enforced by the CSP in `web/public/_header
 
 No web fonts, CDNs, or analytics. Every third party is European and privacy-respecting.
 
+## Desktop (Tauri)
+
+Proton's API only allows browser calls from allowlisted origins (`*.proton.me`, `localhost`, and
+`tauri://localhost`) — so the site can't call it directly from a custom domain yet. As a stopgap
+there's a Tauri wrapper (`web/src-tauri/`) whose webview runs at `tauri://localhost`, which Proton
+does allow, so auth + API work with no proxy. It's additive: the web build is untouched for when
+Proton allowlists the domain.
+
+```sh
+cd web
+bun run app          # dev (hot reload); bun run app:build to package
+```

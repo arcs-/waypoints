@@ -22,17 +22,30 @@ const url = ref<string | null>(null);
 const videoUrl = ref<string | null>(null);
 const liveSrc = ref<string | null>(null);
 const livePlaying = ref(true);
+const liveLoading = ref(false); // motion clip downloading/decrypting → corner spinner
 const liveFailed = ref(false); // true if the motion clip can't be decoded (e.g. HEVC) → keep still
 const loading = ref(false);
 const downloading = ref(false);
 const zoomed = ref(false);
 
-function vlog(tag: string, e: Event) {
-  const v = e.target as HTMLVideoElement;
-  console.info(`[wp] live <${tag}> rs=${v.readyState} err=${v.error?.code ?? '-'} ${v.videoWidth}x${v.videoHeight} net=${v.networkState}`);
+function onLiveCanPlay(e: Event) { (e.target as HTMLVideoElement).play().catch(() => { /* ignore */ }); }
+
+// Pre-size the still to the exact box the full-res decode will occupy: contain-fit into
+// 92vw × 80vh depends only on the aspect ratio, known up front from EXIF (manifest `ar`) and
+// corrected from the thumbnail's real pixels once it loads. The thumb upscales into that box,
+// so the swap to full resolution happens in place — no layout jump. Only HEIC gets this:
+// other photos never upgrade, so their thumbnail keeps its natural size.
+const arMeasured = ref<number | null>(null);
+function onStillLoad(e: Event) {
+  const img = e.target as HTMLImageElement;
+  if (img.naturalWidth && img.naturalHeight) arMeasured.value = img.naturalWidth / img.naturalHeight;
 }
-function onLiveCanPlay(e: Event) { vlog('canplay', e); (e.target as HTMLVideoElement).play().catch(() => { /* ignore */ }); }
-function onLiveError(e: Event) { vlog('error', e); liveFailed.value = true; }
+const stillBox = computed(() => {
+  if (!current.value?.isHeic) return undefined;
+  const ar = arMeasured.value ?? current.value.ar;
+  if (!ar) return undefined;
+  return { aspectRatio: `${ar}`, width: `min(92vw, calc(80vh * ${ar}))` };
+});
 
 // Click to zoom one step into the clicked point; while zoomed, the origin follows the cursor
 // so moving the mouse pans around the image. Click again to zoom back out.
@@ -51,13 +64,22 @@ function onZoomClick(e: MouseEvent) {
 function onZoomMove(e: MouseEvent) {
   if (zoomed.value) setZoomOrigin(e);
 }
+function onZoomKey() {
+  if (zoomed.value) { zoomed.value = false; return; }
+  zoomOrigin.value = '50% 50%';
+  zoomed.value = true;
+}
 
 async function toggleLive() {
   const p = current.value;
   if (!p?.motionUid) return;
   if (livePlaying.value) { livePlaying.value = false; return; }
   liveFailed.value = false;
-  if (!liveSrc.value) liveSrc.value = await motionUrl(p.motionUid);
+  if (!liveSrc.value) {
+    liveLoading.value = true;
+    try { liveSrc.value = await motionUrl(p.motionUid); }
+    finally { liveLoading.value = false; }
+  }
   livePlaying.value = !!liveSrc.value;
 }
 const open = computed(() => props.modelValue !== null);
@@ -103,7 +125,7 @@ function preloadAround(i: number) {
 
 async function show() {
   const p = current.value;
-  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false; liveFailed.value = false; zoomed.value = false;
+  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false; liveLoading.value = false; liveFailed.value = false; zoomed.value = false; arMeasured.value = null;
   if (!p) return;
   loading.value = true;
   if (p.isVideo) {
@@ -131,8 +153,13 @@ async function show() {
   }
   // Live Photo: auto-play its motion clip once the still is up.
   if (p.motionUid && !p.isVideo) {
-    const src = await motionUrl(p.motionUid);
-    if (current.value?.nodeUid === p.nodeUid) { liveSrc.value = src; livePlaying.value = !!src; }
+    liveLoading.value = true;
+    try {
+      const src = await motionUrl(p.motionUid);
+      if (current.value?.nodeUid === p.nodeUid) { liveSrc.value = src; livePlaying.value = !!src; }
+    } finally {
+      if (current.value?.nodeUid === p.nodeUid) liveLoading.value = false;
+    }
   }
   if (props.modelValue != null) preloadAround(props.modelValue);
 }
@@ -274,6 +301,9 @@ function caption(p: Photo | null): string {
       class="flex max-h-[88vh] max-w-[92vw] flex-col items-center gap-3"
       @click.stop
     >
+      <!-- No <track>: no captions exist for personal clips (a src-less placeholder track is
+           worse than none — spec lets pending text tracks hold readyState at 0). -->
+      <!-- eslint-disable-next-line vuejs-accessibility/media-has-caption -->
       <video
         v-if="videoUrl"
         :src="videoUrl"
@@ -281,28 +311,30 @@ function caption(p: Photo | null): string {
         autoplay
         :aria-label="t('lightbox.video')"
         class="max-h-[80vh] max-w-[92vw] rounded-sm"
-      >
-        <track kind="captions">
-      </video>
+      />
       <!-- Still is the base; the Live motion clip overlays it and only shows once it actually
            plays (iPhone clips are HEVC and often unplayable — the still stays put if so). -->
-      <!-- Click to zoom one step in / out. -->
-      <button
+      <!-- Click to zoom one step in / out. A div (not a <button>): a button may not contain the
+           Live <video>, and Firefox refuses to load a <video> nested in a <button>. -->
+      <div
         v-else-if="url"
-        type="button"
+        role="button"
+        tabindex="0"
         :aria-label="zoomed ? t('lightbox.zoomOut') : t('lightbox.zoomIn')"
-        class="
-          relative border-0 bg-transparent p-0 transition-transform duration-200
-        "
+        class="relative transition-transform duration-200"
         :class="zoomed ? 'scale-[2.2] cursor-zoom-out' : 'cursor-zoom-in'"
         :style="{ transformOrigin: zoomOrigin }"
         @click.stop="onZoomClick"
         @mousemove="onZoomMove"
+        @keydown.enter.prevent="onZoomKey"
+        @keydown.space.prevent="onZoomKey"
       >
         <img
           :src="url"
           :alt="caption(current) ? t('lightbox.photoTaken', { date: caption(current) }) : t('lightbox.photo')"
+          :style="stillBox"
           class="block max-h-[80vh] max-w-[92vw] rounded-sm object-contain"
+          @load="onStillLoad"
         >
         <video
           v-if="livePlaying && liveSrc && !liveFailed"
@@ -313,16 +345,27 @@ function caption(p: Photo | null): string {
           playsinline
           :aria-label="t('lightbox.liveMotion')"
           class="absolute inset-0 size-full rounded-sm object-contain"
-          @loadedmetadata="vlog('loadedmetadata', $event)"
           @canplay="onLiveCanPlay"
-          @playing="vlog('playing', $event)"
-          @stalled="vlog('stalled', $event)"
-          @suspend="vlog('suspend', $event)"
-          @error="onLiveError"
+          @error="liveFailed = true"
+        />
+        <span
+          v-if="liveLoading"
+          role="status"
+          :aria-label="t('lightbox.loadingLive')"
+          class="
+            pointer-events-none absolute top-2 right-2 grid place-items-center
+            rounded-full bg-black/45 p-2
+          "
         >
-          <track kind="captions">
-        </video>
-      </button>
+          <span
+            class="
+              size-4 animate-spin rounded-full border-2 border-white/25
+              border-t-white
+            "
+            aria-hidden="true"
+          />
+        </span>
+      </div>
       <div
         v-else
         class="flex flex-col items-center gap-4 py-20 text-white/70"

@@ -6,6 +6,7 @@ import { APP_NAME } from '@/lib/app';
 import AppLogo from '@/components/common/AppLogo.vue';
 import AppFooter from '@/components/common/AppFooter.vue';
 import IconArrowRight from '@/components/icons/IconArrowRight.vue';
+import { isTauri } from '@/lib/platform';
 
 const { t } = useI18n();
 const { busy, error, login } = useProton();
@@ -107,7 +108,10 @@ const pathD = 'M26 9 C 18 18, 10 27, 32 37 C 28 46, 6 55, 22 64 C 16 73, 8 83, 3
           </p>
         </div>
       </div>
-      <AppFooter class="mt-10" />
+      <AppFooter
+        v-if="!isTauri"
+        class="mt-10"
+      />
     </div>
 
     <!-- Right: the features as stops along a winding trail (hidden on small screens).

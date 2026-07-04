@@ -2,8 +2,10 @@
 // index box at the END of the file. Chrome seeks to find it; Firefox stalls at readyState 0.
 // Fix: "fast-start" the container — move 'moov' in front of 'mdat'. Pure byte rewrite, no
 // re-encode: the sample-chunk offsets (stco/co64) inside moov are bumped by moov's size, since
-// mdat now sits that many bytes later. Only applied when the browser can't play the original,
-// so Chrome/Safari keep their untouched fast path.
+// mdat now sits that many bytes later. Applied whenever the container needs it — faststart()
+// itself returns null for already-fast-start/non-MP4 input, and Chrome/Safari play the
+// rewritten file fine (verified), so no playback probe is needed.
+// NB: a Firefox stall persisted even with fast-started files — see web/FIREFOX-VIDEO-STALL.md.
 
 const CONTAINERS = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl', 'edts', 'mvex', 'udta']);
 
@@ -62,37 +64,12 @@ function faststart(input: Uint8Array): Uint8Array | null {
   return out.subarray(0, w);
 }
 
-// Can a detached <video> actually decode this blob URL? true on first frame, false on error or
-// if nothing decodes within the timeout (Firefox's silent stall on a moov-at-end .mov).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- temporarily unused (forced faststart diagnostic)
-function canPlay(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const v = document.createElement('video');
-    v.muted = true;
-    v.preload = 'auto';
-    let done = false;
-    const finish = (ok: boolean) => {
-      if (done) return;
-      done = true;
-      v.removeAttribute('src');
-      try { v.load(); } catch { /* ignore */ }
-      resolve(ok);
-    };
-    const timer = setTimeout(() => finish(false), 1200);
-    v.addEventListener('loadeddata', () => { clearTimeout(timer); finish(true); }, { once: true });
-    v.addEventListener('error', () => { clearTimeout(timer); finish(false); }, { once: true });
-    v.src = url;
-  });
-}
-
-// A URL the <video> element can actually play: the original blob if the browser handles it, else
-// a fast-started rewrite (falling back to the original if the rewrite isn't applicable/fails).
+// A URL the <video> element can play: a fast-started rewrite when the container needs one,
+// otherwise the original blob (also the fallback if the rewrite fails).
 export async function playableVideoUrl(blob: Blob): Promise<string> {
-  // TEMP DIAGNOSTIC: always fast-start (skip the probe) so we can validate the rewrite in Chrome.
   try {
     const fixed = faststart(new Uint8Array(await blob.arrayBuffer()));
-    console.info('[wp] faststart(forced):', fixed ? `${fixed.length} bytes` : 'null');
     if (fixed) return URL.createObjectURL(new Blob([fixed as BlobPart], { type: 'video/mp4' }));
-  } catch (e) { console.warn('[wp] faststart threw', e); }
+  } catch { /* fall through to the original bytes */ }
   return URL.createObjectURL(blob);
 }

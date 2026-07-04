@@ -1,10 +1,42 @@
 import type { SessionCredentials, SessionInfo } from 'proton-drive-sdk-account';
+import { isTauri } from '@/lib/platform';
 
-// Browser SessionCredentials — localStorage-backed so a refresh keeps you logged in.
-// NOTE: this stores the session + userKeyPassword in localStorage (personal machine only).
+// SessionCredentials persisted across restarts. The stored blob contains the session tokens
+// AND the userKeyPassword, so where it lives matters:
+//   - browser: localStorage (personal machine only — plaintext, same as before)
+//   - desktop: macOS Keychain via the keychain_* Tauri commands (never plaintext on disk)
 const KEY = 'trips.proton.session';
 
 type Stored = { session?: SessionInfo; userKeyPassword?: string };
+
+interface BlobStore {
+  read(): Promise<string | null>;
+  write(value: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+const localStore: BlobStore = {
+  async read() { return localStorage.getItem(KEY); },
+  async write(value) { localStorage.setItem(KEY, value); },
+  async clear() { localStorage.removeItem(KEY); },
+};
+
+const keychainStore: BlobStore = {
+  async read() {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<string | null>('keychain_get');
+  },
+  async write(value) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('keychain_set', { value });
+  },
+  async clear() {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('keychain_delete');
+  },
+};
+
+const store = isTauri ? keychainStore : localStore;
 
 export class BrowserCredentials implements SessionCredentials {
   private data: Stored = {};
@@ -22,27 +54,42 @@ export class BrowserCredentials implements SessionCredentials {
 
   async load() {
     try {
-      const raw = localStorage.getItem(KEY);
+      let raw = await store.read();
+      // One-time migration: earlier desktop builds kept the session in localStorage — move it
+      // into the keychain and scrub the plaintext copy.
+      if (!raw && isTauri) {
+        const legacy = localStorage.getItem(KEY);
+        if (legacy) {
+          raw = legacy;
+          await store.write(legacy);
+          localStorage.removeItem(KEY);
+        }
+      }
       if (raw) this.data = JSON.parse(raw);
-    } catch { /* ignore */ }
+    } catch { /* ignore — treated as signed out */ }
   }
 
-  private persist() { localStorage.setItem(KEY, JSON.stringify(this.data)); }
+  // Persistence failing (e.g. keychain denied) shouldn't break the live session — it only
+  // means the next launch asks to sign in again.
+  private async persist() {
+    try { await store.write(JSON.stringify(this.data)); }
+    catch (e) { console.warn('session persist failed', e); }
+  }
 
   async setUserKeyPassword(userKeyPassword: string) {
     this.data.userKeyPassword = userKeyPassword;
-    this.persist();
+    await this.persist();
   }
 
   async setSessionInfo(info: SessionInfo) {
     this.data.session = info;
-    this.persist();
+    await this.persist();
     this.emit();
   }
 
   async signOut() {
     this.data = {};
-    localStorage.removeItem(KEY);
+    try { await store.clear(); } catch { /* ignore */ }
     this.emit();
   }
 }

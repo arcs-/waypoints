@@ -1,0 +1,47 @@
+name: Release desktop app
+
+# Runs when you publish a GitHub Release. It builds the Tauri app and attaches the
+# installers to that same release. (Create/publish the release in the GitHub UI on a tag
+# like `v0.2.0`; keep that version in sync with web/src-tauri/tauri.conf.json.)
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {} # allow manual runs from the Actions tab (no upload)
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: write # needed to upload assets to the release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (with both macOS targets for a universal binary)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: web/src-tauri
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      # Frontend deps for web/ itself. The vendored Proton SDK deps are installed by the
+      # `install:sdk` step inside `bun run build`, which tauri-action runs as beforeBuildCommand.
+      - name: Install frontend dependencies
+        run: bun install
+        working-directory: web
+
+      - name: Build app and upload to the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Inlined into the bundle at build time; add it as a repo secret (Settings → Secrets).
+          VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+        with:
+          projectPath: web
+          releaseId: ${{ github.event.release.id }}
+          args: --target universal-apple-darwin

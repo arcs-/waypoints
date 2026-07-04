@@ -15,7 +15,8 @@ const countPhotos = (a: StoredAlbum) => a.stops.reduce((n, s) => n + s.photos.le
 export function useAlbumManifest() {
   const { proton } = useProton();
   const manifest = shallowRef<StoredAlbum | null>(null);
-  const building = ref(false);
+  const loading = ref(false); // ensure() in flight — includes the quick cache-file probe
+  const building = ref(false); // expensive per-photo rebuild only (drives the N/M progress UI)
   const progress = ref(0);
   const total = ref(0);
   const error = ref<string | null>(null);
@@ -29,9 +30,10 @@ export function useAlbumManifest() {
     const p = proton.value;
     if (!p) { error.value = 'Not signed in'; return; }
 
-    building.value = true; progress.value = 0; total.value = album.photoCount ?? 0;
+    loading.value = true;
     try {
-      // 1) Try the Proton file (cache). Fresh if the album hasn't changed since.
+      // 1) Try the Proton file (cache). Fresh if the album hasn't changed since. Usually a hit,
+      // so only `loading` (neutral spinner) is up — the 0/N progress UI would be a lie here.
       let stored: StoredAlbum | null = null;
       try { stored = await readAlbumFile(p.drive, album.slug); } catch { /* first run / offline */ }
 
@@ -42,7 +44,9 @@ export function useAlbumManifest() {
         manifest.value = stored; session.set(album.uid, stored); return;
       }
 
-      // 2) Rebuild (expensive). Preserve any titles/descriptions the user wrote (keyed by stop).
+      // 2) Rebuild (expensive). Now the per-photo progress is real — switch on the N/M UI.
+      // Preserve any titles/descriptions the user wrote (keyed by stop).
+      building.value = true; progress.value = 0; total.value = album.photoCount ?? 0;
       const priorNotes = new Map((stored?.stops ?? []).map((s) => [s.key, s.description]));
       const priorTitles = new Map((stored?.stops ?? []).map((s) => [s.key, s.title]));
       const built = await buildManifest(p.photos, album, (d, t) => { progress.value = d; total.value = t; });
@@ -65,6 +69,7 @@ export function useAlbumManifest() {
       error.value = (e as Error).message;
     } finally {
       building.value = false;
+      loading.value = false;
     }
   }
 
@@ -92,5 +97,5 @@ export function useAlbumManifest() {
     persist(album, manifest.value);
   }
 
-  return { manifest, building, progress, total, error, ensure, saveDescription, saveTitle };
+  return { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle };
 }
