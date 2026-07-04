@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Manual dark mode: `dark:` utilities respond to <html data-theme="dark"> (set by useTheme),
+   not the OS media query — so the in-app light/dark switch works. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* stillh.art-inspired theme: monospace, single yellow accent. Dark mode = prefers-color-scheme. */
 @theme {
   --color-accent: #ffd168;
@@ -31,51 +35,3 @@
   }
 }
 
-/* Leaflet needs real CSS (not utilities) */
-.leaflet-container { height: 100%; width: 100%; font-family: var(--font-mono); background: transparent; }
-
-/* On-brand map: a light warm duotone tint on the BASE only (label overlay stays crisp). */
-.mm-map .mm-tint { filter: grayscale(1) sepia(0.3) saturate(1.25) hue-rotate(-6deg) brightness(1.12); }
-@media (prefers-color-scheme: dark) {
-  .mm-map .mm-tint { filter: grayscale(1) sepia(0.35) saturate(1.2) hue-rotate(-8deg) brightness(1.02) contrast(0.95); }
-}
-
-/* Hover-highlight marker: the photo popped larger with a pulsing accent ring */
-.mm-hl {
-  width: 72px; height: 72px; border-radius: 9999px; overflow: hidden;
-  border: 3px solid var(--color-accent); background: #e5e5e5;
-  box-shadow: 0 0 0 4px rgba(255, 209, 104, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
-  animation: mmpulse 1.1s ease-in-out infinite;
-}
-.mm-hl { position: relative; box-sizing: border-box; }
-.mm-hl img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-@keyframes mmpulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(255,209,104,.35), 0 4px 14px rgba(0,0,0,.4); } 50% { box-shadow: 0 0 0 9px rgba(255,209,104,.12), 0 4px 14px rgba(0,0,0,.4); } }
-
-/* Photo markers: a circular first-image with a count badge */
-.leaflet-div-icon.mm-icon { background: transparent; border: none; cursor: pointer; }
-.mm-wrap { position: relative; width: 58px; height: 58px; }
-.mm-dot {
-  position: relative; box-sizing: border-box;
-  width: 58px; height: 58px; border-radius: 9999px; overflow: hidden;
-  border: 3px solid var(--color-accent); background: #e5e5e5;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); transition: transform .15s ease;
-}
-.mm-wrap:hover .mm-dot { transform: scale(1.08); }
-.mm-dot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-.mm-badge {
-  position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px;
-  border-radius: 9999px; background: #111; color: #fff; font-size: 11px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; border: 2px solid var(--color-accent);
-}
-
-/* brief highlight when a stop is opened from the map */
-.stop-flash { animation: stopflash 1.4s ease-out; }
-@keyframes stopflash {
-  0% { box-shadow: 0 0 0 2px var(--color-accent); }
-  100% { box-shadow: 0 0 0 2px transparent; }
-}
-
-/* Thumbnail fade-in (decrypted in-browser) + gentle zoom on card hover */
-.thumb__img { opacity: 0; transition: opacity .35s, transform .5s ease; }
-.thumb__img.on { opacity: 1; }
-.group:hover .thumb__img { transform: scale(1.04); }

@@ -1,4 +1,4 @@
-// The stillh.art / Memory Lane mark — shared by the Logo component and the loading animation
+// The stillh.art / Waypoints mark — shared by the Logo component and the loading animation
 // (which draws this same path as line art). Path coords assume the transform below.
 export const LOGO_VIEWBOX = '0 0 195.13 172.82';
 export const LOGO_TRANSFORM = 'translate(-268.97 -497.43)';

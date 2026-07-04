@@ -5,9 +5,9 @@ import { readAlbumFile, writeAlbumFile } from '@/lib/protonIndex';
 import type { AlbumRef } from './useAlbums';
 import type { StoredAlbum } from '@/lib/types';
 
-// Source of truth + cache: one JSON per album in Proton /.memory-lane/<slug>.json.
+// Source of truth + cache: one JSON per album in Proton /.waypoints/<slug>.json.
 // Reading it skips the expensive per-photo EXIF reads + reverse-geocoding.
-const VERSION = 5; // bump to invalidate caches when the manifest shape changes
+const VERSION = 7; // bump to invalidate caches when the manifest shape changes
 const session = new Map<string, StoredAlbum>(); // in-memory cache for this tab
 
 const countPhotos = (a: StoredAlbum) => a.stops.reduce((n, s) => n + s.photos.length, 0);

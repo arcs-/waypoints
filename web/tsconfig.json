@@ -1,18 +1,11 @@
 {
+  "extends": "@total-typescript/tsconfig/bundler/dom/app",
   "compilerOptions": {
-    "target": "ES2022",
-    "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
     "jsx": "preserve",
-    "strict": true,
-    "baseUrl": "src",
-    "paths": { "@/*": ["*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "@protontech/drive-sdk/protonDrivePhotosClient": ["./node_modules/@protontech/drive-sdk/dist/protonDrivePhotosClient"]
+    }
   },
   "include": ["src", "*.ts"]
 }

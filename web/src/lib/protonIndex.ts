@@ -1,13 +1,17 @@
-// Reads/writes one JSON file per album in Proton Drive /.memory-lane/.
+// Reads/writes one JSON file per album in Proton Drive /.waypoints/.
 // This is the durable store AND the cache for expensive EXIF/geocode work.
 import { NodeType } from '@protontech/drive-sdk';
+import type { Proton } from '@/proton/client';
 import type { StoredAlbum } from './types';
 
-const FOLDER = '.memory-lane';
-type Drive = any; // ProtonDriveClient
+const FOLDER = '.waypoints';
+type Drive = Proton['drive'];
 
-function nodeName(node: any): string {
-  return node?.name?.ok ? node.name.value : (node?.name ?? '');
+// A node's name is a Result<string> in the SDK, but older/degraded nodes expose a plain string.
+function nodeName(node: unknown): string {
+  const n = (node as { name?: { ok?: boolean; value?: string } | string }).name;
+  if (typeof n === 'string') return n;
+  return n?.ok ? (n.value ?? '') : '';
 }
 
 let folderUidPromise: Promise<string> | null = null;

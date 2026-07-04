@@ -12,8 +12,8 @@ import { makeLogger } from './logger';
 const BASE_URL = 'drive-api.proton.me';
 // x-pm-appversion identity. Format: platform-product[-app]@version, each part dash-free.
 // 'external-drive' is Proton's namespace for third-party SDK apps (matches AUTH_CLIENT_ID);
-// the last segment names THIS app (Memory Lane → memorylane, no spaces/dashes).
-const APP_VERSION = 'external-drive-memorylane@0.1.0';
+// the last segment names THIS app (Waypoints → waypoints, no spaces/dashes).
+const APP_VERSION = 'external-drive-waypoints@0.1.0';
 const AUTH_CLIENT_ID = 'external-drive';
 
 function initCrypto() {
@@ -44,7 +44,7 @@ export async function initProton() {
     authClientId: AUTH_CLIENT_ID, apiClient, credentials, cryptoProxy: CryptoProxy, logger,
   });
 
-  const deps = {
+  const deps: ConstructorParameters<typeof ProtonDriveClient>[0] = {
     config: { baseUrl: BASE_URL, clientUid: clientUid() },
     httpClient: new HTTPClient(apiClient),
     entitiesCache: new MemoryCache(),
@@ -52,7 +52,7 @@ export async function initProton() {
     account: new DriveAccountAdapter(addresses),
     openPGPCryptoModule,
     srpModule: srp,
-  } as any;
+  };
 
   const photos = new ProtonDrivePhotosClient(deps);
   const drive = new ProtonDriveClient(deps); // regular My Files — for the /trips-index/ store

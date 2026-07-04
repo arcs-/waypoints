@@ -26,8 +26,25 @@ onBeforeUnmount(() => observer?.disconnect());
 
 <template>
   <!-- Consumer supplies sizing (e.g. aspect-square / aspect-[4/3]). -->
-  <div ref="el" class="relative overflow-hidden rounded bg-neutral-200 dark:bg-neutral-800">
-    <img v-if="url" :src="url" :alt="alt || ''" decoding="async" class="thumb__img w-full h-full object-cover block" :class="{ on: loaded }" @load="loaded = true" />
+  <div
+    ref="el"
+    class="
+      relative overflow-hidden rounded-sm bg-neutral-200
+      dark:bg-neutral-800
+    "
+  >
+    <img
+      v-if="url"
+      :src="url"
+      :alt="alt || ''"
+      decoding="async"
+      class="
+        block size-full object-cover opacity-0 transition duration-500
+        group-hover:scale-[1.04]
+      "
+      :class="{ 'opacity-100': loaded }"
+      @load="loaded = true"
+    >
     <slot />
   </div>
 </template>
