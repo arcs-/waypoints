@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import PhotoFeed from '@/components/album/PhotoFeed.vue';
 import RouteMap from '@/components/album/RouteMap.vue';
 import LoadingRoute from '@/components/common/LoadingRoute.vue';
@@ -12,6 +13,7 @@ import { APP_NAME } from '@/lib/app';
 import type { Photo } from '@/lib/types';
 
 const props = defineProps<{ slug: string }>();
+const { t } = useI18n();
 const { bySlug, albums } = useAlbums();
 const { manifest, building, progress, total, error, ensure, saveDescription, saveTitle } = useAlbumManifest();
 const protonUrl = ref<string | null>(null);
@@ -27,7 +29,6 @@ watch([album], () => {
 }, { immediate: true });
 
 // Reading photo metadata is expensive and not resumable — guard against leaving mid-build.
-const LEAVE_MSG = 'Still reading photo metadata — leave now and this album will need to rebuild.';
 function beforeUnload(e: BeforeUnloadEvent) {
   if (!building.value) return;
   e.preventDefault();
@@ -39,7 +40,7 @@ watch(building, (b) => {
 });
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload));
 // In-app navigation (e.g. back to the overview) while building → confirm first.
-onBeforeRouteLeave(() => (building.value ? window.confirm(LEAVE_MSG) : true));
+onBeforeRouteLeave(() => (building.value ? window.confirm(t('album.leaveWarning')) : true));
 </script>
 
 <template>
@@ -56,7 +57,7 @@ onBeforeRouteLeave(() => (building.value ? window.confirm(LEAVE_MSG) : true));
     class="min-h-dvh justify-center"
     :progress="progress"
     :total="total"
-    label="Reading photo metadata…"
+    :label="t('album.readingMetadata')"
   />
 
   <div

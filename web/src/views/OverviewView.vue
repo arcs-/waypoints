@@ -5,13 +5,16 @@ import AppLogo from '@/components/common/AppLogo.vue';
 import LoadingRoute from '@/components/common/LoadingRoute.vue';
 import FullscreenToggle from '@/components/common/FullscreenToggle.vue';
 import ThemeToggle from '@/components/common/ThemeToggle.vue';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
 import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import IconSignOut from '@/components/icons/IconSignOut.vue';
+import { useI18n } from 'vue-i18n';
 import { useAlbums } from '@/composables/useAlbums';
 import { useProton } from '@/composables/useProton';
 import { PROTON_PHOTOS_URL } from '@/lib/protonLink';
 import { APP_NAME } from '@/lib/app';
 
+const { t } = useI18n();
 const { albums, loading, error } = useAlbums();
 const { logout } = useProton();
 
@@ -59,7 +62,7 @@ const groups = computed(() => {
         {{ APP_NAME }}
       </h1>
       <nav
-        aria-label="App controls"
+        :aria-label="t('controls.appControls')"
         class="
           flex shrink-0 items-center gap-1 rounded-full border
           border-neutral-200 bg-white/70 px-1.5 py-1 backdrop-blur-sm
@@ -68,29 +71,30 @@ const groups = computed(() => {
       >
         <FullscreenToggle />
         <ThemeToggle />
+        <LanguageSwitcher />
         <a
           :href="PROTON_PHOTOS_URL"
           target="_blank"
           rel="noopener"
-          aria-label="Open Proton Photos (opens in a new tab)"
-          title="Open in Proton"
+          :aria-label="t('controls.openProton')"
+          :title="t('controls.openInProton')"
           class="
             flex items-center border-0 p-1 text-neutral-500 transition-colors
             hover:text-accent
           "
         >
-          <IconExternalLink class="size-[18px]" />
+          <IconExternalLink class="size-5" />
         </a>
         <button
-          aria-label="Sign out"
-          title="Sign out"
+          :aria-label="t('controls.signOut')"
+          :title="t('controls.signOut')"
           class="
             flex items-center border-0 p-1 text-neutral-500 transition-colors
             hover:text-accent
           "
           @click="logout"
         >
-          <IconSignOut class="size-[18px]" />
+          <IconSignOut class="size-5" />
         </button>
       </nav>
     </header>

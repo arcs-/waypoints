@@ -9,6 +9,8 @@ import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import IconPlay from '@/components/icons/IconPlay.vue';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconEdit from '@/components/icons/IconEdit.vue';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue';
+import { useI18n } from 'vue-i18n';
 import { useMotion } from '@/composables/useMotion';
 import { fmtDistance, haversineM } from '@/lib/geo';
 import type { Manifest, Photo, Stop } from '@/lib/types';
@@ -20,6 +22,8 @@ const emit = defineEmits<{
   (e: 'hover-photo', photo: Photo | null): void;
   (e: 'active-stop', index: number): void;
 }>();
+
+const { t, locale } = useI18n();
 
 // Scroll-spy: tell the map which stop is currently in view.
 const rootEl = ref<HTMLElement | null>(null);
@@ -59,7 +63,7 @@ function onTileLeave(p: Photo) {
   if (motionHoverId.value === p.id) { motionHoverId.value = null; motionSrc.value = null; }
 }
 
-const displayTitle = (stop: Stop) => stop.title || stop.place || 'Unknown location';
+const displayTitle = (stop: Stop) => stop.title || stop.place || t('album.unknownLocation');
 function commitTitle(stop: Stop, e: Event) {
   emit('save-title', stop.key, (e.target as HTMLInputElement).value);
   titleEditing.delete(stop.key);
@@ -87,11 +91,11 @@ function dayNum(i: number): number | null {
   return first && d ? Math.round((+new Date(d) - +new Date(first)) / 86400000) + 1 : null;
 }
 function dateTag(i: number): string {
-  const t = props.manifest.stops[i]?.startTime;
-  if (!t) return '';
-  const d = new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  const start = props.manifest.stops[i]?.startTime;
+  if (!start) return '';
+  const d = new Date(start).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short' });
   const n = dayNum(i);
-  return n ? `Day ${n} · ${d}` : d;
+  return n ? `${t('album.day', { n })} · ${d}` : d;
 }
 
 function metaLine(stop: Stop): string {
@@ -101,8 +105,8 @@ function metaLine(stop: Stop): string {
   if (s) {
     const full: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
     parts.push(!e || s.toDateString() === e.toDateString()
-      ? s.toLocaleDateString(undefined, full)
-      : `${s.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString(undefined, full)}`);
+      ? s.toLocaleDateString(locale.value, full)
+      : `${s.toLocaleDateString(locale.value, { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString(locale.value, full)}`);
   }
   return parts.join(' · ');
 }
@@ -110,9 +114,9 @@ function metaLine(stop: Stop): string {
 // album summary: photos · days · total distance
 const summary = computed(() => {
   const stops = props.manifest.stops;
-  const parts = [`${flat.value.length} photos`];
+  const parts = [t('album.photos', { n: flat.value.length }, flat.value.length)];
   const days = new Set(stops.map((s) => dayOf(s.startTime)).filter(Boolean)).size;
-  if (days) parts.push(`${days} ${days > 1 ? 'days' : 'day'}`);
+  if (days) parts.push(t('album.days', { n: days }, days));
   let meters = 0;
   for (let i = 1; i < stops.length; i++) {
     const a = stops[i - 1], b = stops[i];
@@ -144,7 +148,7 @@ function tileSpan(i: number): string {
     <header class="mb-8 flex items-center gap-4">
       <RouterLink
         :to="{ name: 'overview' }"
-        aria-label="All trips"
+        :aria-label="t('controls.allTrips')"
         class="
           -mt-4 shrink-0 transition-colors
           hover:text-accent
@@ -163,7 +167,7 @@ function tileSpan(i: number): string {
         </div>
       </div>
       <nav
-        aria-label="Album controls"
+        :aria-label="t('controls.albumControls')"
         class="
           ml-auto flex shrink-0 items-center gap-1 rounded-full border
           border-neutral-200 bg-white/70 px-1.5 py-1 backdrop-blur-sm
@@ -172,6 +176,7 @@ function tileSpan(i: number): string {
       >
         <FullscreenToggle />
         <ThemeToggle />
+        <LanguageSwitcher />
         <a
           v-if="protonUrl"
           :href="protonUrl"
@@ -181,10 +186,10 @@ function tileSpan(i: number): string {
             flex items-center border-0 p-1 text-neutral-500 transition-colors
             hover:text-accent
           "
-          aria-label="Open this album in Proton (opens in a new tab)"
-          title="Open in Proton"
+          :aria-label="t('controls.openAlbumProton')"
+          :title="t('controls.openInProton')"
         >
-          <IconExternalLink class="size-[18px]" />
+          <IconExternalLink class="size-5" />
         </a>
       </nav>
     </header>
@@ -194,63 +199,68 @@ function tileSpan(i: number): string {
         v-for="(stop, i) in manifest.stops"
         :key="stop.key"
       >
-        <!-- start of the timeline: an origin node + accent "Day 1" tag, line flows down into card 1 -->
+        <!-- start of the timeline: an origin node sitting on the line, "Day 1" beside it -->
         <div
           v-if="i === 0"
-          class="flex items-stretch gap-3"
+          class="relative flex items-center py-9 pl-14"
         >
-          <div class="ml-10 flex w-2 shrink-0 flex-col items-center">
-            <span
-              class="
-                size-3.5 shrink-0 rounded-full bg-accent ring-4 ring-white
-                dark:ring-neutral-900
-              "
-            />
-            <div
-              class="
-                w-px flex-1 bg-neutral-300
-                dark:bg-neutral-700
-              "
-            />
-          </div>
-          <div class="flex items-center py-5">
-            <span
-              class="
-                rounded-full bg-accent px-2.5 py-1 text-xs font-bold
-                tracking-wider text-black uppercase
-              "
-            >{{ dateTag(0) }}</span>
-          </div>
+          <span
+            class="
+              absolute top-1/2 bottom-0 left-10 w-px -translate-x-1/2
+              bg-neutral-300
+              dark:bg-neutral-700
+            "
+            aria-hidden="true"
+          />
+          <span
+            class="
+              absolute top-1/2 left-10 size-3.5 -translate-1/2 rounded-full
+              bg-accent ring-4 ring-white
+              dark:ring-neutral-900
+            "
+            aria-hidden="true"
+          />
+          <span
+            class="
+              rounded-full bg-accent px-2.5 py-1 text-xs font-bold
+              tracking-wider text-black uppercase
+            "
+          >{{ dateTag(0) }}</span>
         </div>
 
-        <!-- mid-timeline connector; the line stretches flush so it touches both cards -->
+        <!-- mid-timeline connector: one continuous line; a new day gets an accent node with its
+             date badge sitting on it, and the leg distance annotates the line -->
         <div
           v-else
-          class="flex items-stretch gap-3"
+          class="relative flex flex-wrap items-center gap-2.5 py-16 pl-14"
         >
-          <div class="ml-10 flex w-2 shrink-0 justify-center">
-            <div
-              class="
-                w-px bg-neutral-300
-                dark:bg-neutral-700
-              "
-            />
-          </div>
-          <div class="flex flex-wrap items-center gap-2.5 py-14">
-            <span
-              v-if="isNewDay(i)"
-              class="
-                rounded-full bg-accent px-2.5 py-1 text-xs font-bold
-                tracking-wider text-black uppercase
-              "
-            >
-              {{ dateTag(i) }}
-            </span>
-            <span
-              v-if="legDist[i]"
-              class="text-xs text-neutral-500"
-            >↓ {{ legDist[i] }}</span>
-          </div>
+          <span
+            class="
+              absolute inset-y-0 left-10 w-px -translate-x-1/2 bg-neutral-300
+              dark:bg-neutral-700
+            "
+            aria-hidden="true"
+          />
+          <span
+            v-if="isNewDay(i)"
+            class="
+              absolute top-1/2 left-10 size-3.5 -translate-1/2 rounded-full
+              bg-accent ring-4 ring-white
+              dark:ring-neutral-900
+            "
+            aria-hidden="true"
+          />
+          <span
+            v-if="isNewDay(i)"
+            class="
+              rounded-full bg-accent px-2.5 py-1 text-xs font-bold
+              tracking-wider text-black uppercase
+            "
+          >{{ dateTag(i) }}</span>
+          <span
+            v-if="legDist[i]"
+            class="text-xs text-neutral-500"
+          >↓ {{ legDist[i] }}</span>
         </div>
 
         <!-- full-width stop card -->
@@ -267,7 +277,7 @@ function tileSpan(i: number): string {
               v-if="titleEditing.has(stop.key)"
               :ref="(el) => (el as HTMLInputElement | null)?.focus()"
               :value="displayTitle(stop)"
-              aria-label="Stop title"
+              :aria-label="t('album.stopTitle')"
               class="
                 w-full border-b border-accent bg-transparent text-xl font-bold
                 tracking-tight outline-none
@@ -286,7 +296,7 @@ function tileSpan(i: number): string {
                   hover:text-accent
                   focus-visible:opacity-100
                 "
-                :aria-label="`Rename ${displayTitle(stop)}`"
+                :aria-label="t('album.rename', { title: displayTitle(stop) })"
                 @click="titleEditing.add(stop.key)"
               >
                 <IconEdit class="size-3.5" />
@@ -300,7 +310,7 @@ function tileSpan(i: number): string {
           <textarea
             v-if="stop.description || editing.has(stop.key)"
             :value="stop.description"
-            aria-label="Note for this stop"
+            :aria-label="t('album.note')"
             rows="1"
             class="
               mt-2 field-sizing-content w-full resize-none bg-transparent
@@ -320,7 +330,7 @@ function tileSpan(i: number): string {
             "
             @click="editing.add(stop.key)"
           >
-            + note
+            {{ t('album.addNote') }}
           </button>
 
           <div
@@ -336,7 +346,9 @@ function tileSpan(i: number): string {
               :node-uid="p.nodeUid"
               role="button"
               tabindex="0"
-              :aria-label="`View ${p.isVideo ? 'video' : 'photo'} ${j + 1} of ${stop.photos.length}`"
+              :aria-label="p.isVideo
+                ? t('album.viewVideo', { j: j + 1, n: stop.photos.length })
+                : t('album.viewPhoto', { j: j + 1, n: stop.photos.length })"
               :class="['group h-full cursor-zoom-in', tileSpan(j)]"
               @click="lightbox = flat.indexOf(p)"
               @keydown.enter.prevent="lightbox = flat.indexOf(p)"
@@ -368,7 +380,7 @@ function tileSpan(i: number): string {
                     text-white
                   "
                 >
-                  <IconPlay class="size-[18px]" />
+                  <IconPlay class="size-5" />
                 </span>
               </span>
               <span
@@ -379,8 +391,8 @@ function tileSpan(i: number): string {
                   text-[10px] font-bold tracking-wide text-white uppercase
                 "
               >
-                <IconLivePhoto class="size-[11px]" />
-                Live
+                <IconLivePhoto class="size-3" />
+                {{ t('album.live') }}
               </span>
             </AlbumThumb>
           </div>

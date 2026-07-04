@@ -2,10 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useThumbnails } from '@/composables/useThumbnails';
 import { useProton } from '@/composables/useProton';
+import { useI18n } from 'vue-i18n';
 import { useMotion } from '@/composables/useMotion';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconDownload from '@/components/icons/IconDownload.vue';
 import type { Photo } from '@/lib/types';
+
+const { t, locale } = useI18n();
 
 // index === null → closed. Reuses the in-browser thumbnail decryption + cache.
 const props = defineProps<{ modelValue: number | null; photos: Photo[] }>();
@@ -153,7 +156,7 @@ onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; });
 
 function caption(p: Photo | null): string {
-  return p?.takenAt ? new Date(p.takenAt).toLocaleString() : '';
+  return p?.takenAt ? new Date(p.takenAt).toLocaleString(locale.value) : '';
 }
 </script>
 
@@ -164,7 +167,7 @@ function caption(p: Photo | null): string {
     tabindex="-1"
     role="dialog"
     aria-modal="true"
-    aria-label="Photo viewer"
+    :aria-label="t('lightbox.viewer')"
     class="
       fixed inset-0 z-1000 grid place-items-center bg-black/92 outline-none
       select-none
@@ -176,7 +179,7 @@ function caption(p: Photo | null): string {
     <button
       type="button"
       tabindex="-1"
-      aria-label="Close photo viewer"
+      :aria-label="t('lightbox.closeViewer')"
       class="absolute inset-0 cursor-default"
       @click="close"
     />
@@ -187,12 +190,12 @@ function caption(p: Photo | null): string {
         class="
           flex items-center gap-1 text-xs font-bold tracking-wide uppercase
         "
-        :aria-label="livePlaying ? 'Show still' : 'Play Live Photo motion'"
-        title="Live Photo"
+        :aria-label="livePlaying ? t('lightbox.showStill') : t('lightbox.playLive')"
+        :title="t('lightbox.livePhoto')"
         @click="toggleLive"
       >
         <IconLivePhoto class="size-4" />
-        Live
+        {{ t('lightbox.live') }}
       </button>
       <button
         class="
@@ -200,8 +203,8 @@ function caption(p: Photo | null): string {
           disabled:opacity-40
         "
         :disabled="downloading"
-        aria-label="Download"
-        :title="downloading ? 'Downloading…' : 'Download original'"
+        :aria-label="t('lightbox.download')"
+        :title="downloading ? t('lightbox.downloading') : t('lightbox.downloadOriginal')"
         @click="download"
       >
         <IconDownload class="size-5" />
@@ -211,7 +214,7 @@ function caption(p: Photo | null): string {
           text-2xl leading-none
           hover:text-white
         "
-        aria-label="Close"
+        :aria-label="t('lightbox.close')"
         @click="close"
       >
         ✕
@@ -225,7 +228,7 @@ function caption(p: Photo | null): string {
         hover:text-white
         sm:left-6
       "
-      aria-label="Previous"
+      :aria-label="t('lightbox.previous')"
       @click.stop="go(-1)"
     >
       ‹
@@ -240,7 +243,7 @@ function caption(p: Photo | null): string {
         :src="videoUrl"
         controls
         autoplay
-        aria-label="Video"
+        :aria-label="t('lightbox.video')"
         class="max-h-[80vh] max-w-[92vw] rounded-sm"
       >
         <track kind="captions">
@@ -252,7 +255,7 @@ function caption(p: Photo | null): string {
         muted
         loop
         playsinline
-        aria-label="Live Photo motion"
+        :aria-label="t('lightbox.liveMotion')"
         class="max-h-[80vh] max-w-[92vw] rounded-sm"
       >
         <track kind="captions">
@@ -260,7 +263,7 @@ function caption(p: Photo | null): string {
       <img
         v-else-if="url"
         :src="url"
-        :alt="caption(current) ? `Photo taken ${caption(current)}` : 'Photo'"
+        :alt="caption(current) ? t('lightbox.photoTaken', { date: caption(current) }) : t('lightbox.photo')"
         class="max-h-[80vh] max-w-[92vw] rounded-sm object-contain"
       >
       <div
@@ -274,7 +277,7 @@ function caption(p: Photo | null): string {
           "
           aria-hidden="true"
         />
-        <span class="text-sm">{{ current?.isVideo ? 'Loading video…' : current?.isHeic ? 'Decoding HEIC…' : 'Decrypting…' }}</span>
+        <span class="text-sm">{{ current?.isVideo ? t('lightbox.loadingVideo') : current?.isHeic ? t('lightbox.decodingHeic') : t('lightbox.decrypting') }}</span>
       </div>
       <div class="text-xs text-white/60 tabular-nums">
         {{ (modelValue ?? 0) + 1 }} / {{ photos.length }}<span v-if="caption(current)"> · {{ caption(current) }}</span>
@@ -288,7 +291,7 @@ function caption(p: Photo | null): string {
         hover:text-white
         sm:right-6
       "
-      aria-label="Next"
+      :aria-label="t('lightbox.next')"
       @click.stop="go(1)"
     >
       ›

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import L from 'leaflet';
+import { useI18n } from 'vue-i18n';
 import { useThumbnails } from '@/composables/useThumbnails';
 import { useTheme } from '@/composables/useTheme';
 import type { Manifest, Photo } from '@/lib/types';
 
 const props = defineProps<{ manifest: Manifest; highlight?: Photo | null; activeStop?: number }>();
+const { t } = useI18n();
 const { thumbUrl } = useThumbnails();
 const { theme } = useTheme();
 const el = ref<HTMLElement | null>(null);
@@ -119,7 +121,7 @@ onBeforeUnmount(() => map?.remove());
   <div
     ref="el"
     role="region"
-    aria-label="Map of trip locations"
+    :aria-label="t('album.mapRegion')"
     class="
       mm-map size-full bg-neutral-300
       dark:bg-neutral-900
