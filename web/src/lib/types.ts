@@ -8,6 +8,7 @@ export interface Photo {
   ar?: number; // aspect ratio (w/h), captured for potential gallery use
   isVideo?: boolean;
   isHeic?: boolean; // HEIC/HEIF — not natively renderable; decode in the lightbox
+  motionUid?: string; // Live Photo: the related motion-video node to play
 }
 
 // A "stop": consecutive photos clustered by location (a place on the journey).

@@ -1,6 +1,9 @@
 import { ref, shallowRef, watch } from 'vue';
+import type { Proton } from '@/proton/client';
 import { useProton } from './useProton';
 import { slugify } from '@/lib/slug';
+
+type Sdk = Proton['photos'];
 
 export interface AlbumRef {
   uid: string;
@@ -17,8 +20,10 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 let loaded = false;
 
-function name(node: any): string {
-  return node?.name?.ok ? node.name.value : (node?.name ?? 'Untitled');
+function name(node: unknown): string {
+  const n = (node as { name?: { ok?: boolean; value?: string } | string }).name;
+  if (typeof n === 'string') return n;
+  return n?.ok ? (n.value ?? 'Untitled') : 'Untitled';
 }
 function sortByDate(list: AlbumRef[]) {
   list.sort((a, b) => (b.date ?? b.lastActivityTime ?? 0) - (a.date ?? a.lastActivityTime ?? 0));
@@ -26,7 +31,7 @@ function sortByDate(list: AlbumRef[]) {
 
 // First-image date via a cheap metadata scan of the album (no downloads), cached in localStorage.
 const DKEY = (uid: string) => `trips.firstdate.${uid}`;
-async function firstImageDate(sdk: any, a: AlbumRef): Promise<number | null> {
+async function firstImageDate(sdk: Sdk, a: AlbumRef): Promise<number | null> {
   try {
     const raw = localStorage.getItem(DKEY(a.uid));
     if (raw) {
@@ -44,7 +49,7 @@ async function firstImageDate(sdk: any, a: AlbumRef): Promise<number | null> {
   return date;
 }
 
-async function load(sdk: any) {
+async function load(sdk: Sdk) {
   if (loaded || loading.value) return;
   loading.value = true; error.value = null;
   try {

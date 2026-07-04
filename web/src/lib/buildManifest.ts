@@ -1,30 +1,29 @@
 import exifr from 'exifr';
+import { PhotoTag } from '@protontech/drive-sdk';
+import type { Proton } from '@/proton/client';
 import { reverseGeocode } from './geocode';
 import type { Manifest, Photo, Stop } from './types';
 
 const HEAD_BYTES = 256 * 1024; // EXIF (incl. GPS) lives at the head of the file
 const CONCURRENCY = 4; // be a good citizen re: rate limits
-const STOP_RADIUS_M = 600; // start a new stop when you move beyond this from the current centroid
+const STOP_RADIUS_M = 1000; // start a new stop only after moving ≥N km from the current centroid
 
 // MP4/MOV, HEIC/HEIF and AVIF all share the ISOBMFF 'ftyp' container; classify by major brand.
+// Only explicit image brands are treated as images; anything else with ftyp is video
+// (e.g. hev1/hvc1/qt/isom/mp4x — HEVC video shares the codec with HEIC but isn't an image).
+const IMAGE_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'heif', 'hevc', 'hevx', 'mif1', 'msf1', 'miff', 'avif', 'avis']);
 function ftypBrand(bytes: Uint8Array): string | null {
-  if (bytes.length < 12) return null;
-  const at = (o: number) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+  if (bytes.length < 12) return null; // bounds-checked: max index read below is 11
+  const at = (o: number) => String.fromCharCode(bytes[o]!, bytes[o + 1]!, bytes[o + 2]!, bytes[o + 3]!);
   return at(4) === 'ftyp' ? at(8).toLowerCase() : null;
-}
-function isHeicBrand(brand: string): boolean {
-  return brand.startsWith('hei') || brand.startsWith('hev') || brand === 'mif1' || brand === 'msf1' || brand === 'heif';
 }
 function looksLikeVideo(bytes: Uint8Array): boolean {
   const brand = ftypBrand(bytes);
-  if (!brand) return false;
-  // HEIF/HEIC/AVIF image brands → not video (AVIF renders natively)
-  if (isHeicBrand(brand) || brand === 'avif' || brand === 'avis') return false;
-  return true; // isom/mp41/mp42/qt /M4V /3gp… → video
+  return !!brand && !IMAGE_BRANDS.has(brand);
 }
 function looksLikeHeic(bytes: Uint8Array): boolean {
   const brand = ftypBrand(bytes);
-  return !!brand && isHeicBrand(brand);
+  return !!brand && IMAGE_BRANDS.has(brand) && brand !== 'avif' && brand !== 'avis'; // AVIF renders natively
 }
 
 function haversine(aLat: number, aLng: number, bLat: number, bLng: number): number {
@@ -34,7 +33,7 @@ function haversine(aLat: number, aLng: number, bLat: number, bLng: number): numb
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-type Sdk = any; // ProtonDrivePhotosClient
+type Sdk = Proton['photos'];
 type AlbumRef = { uid: string; name: string };
 
 async function mapLimit<T>(items: T[], limit: number, fn: (item: T, i: number) => Promise<void>) {
@@ -42,7 +41,7 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T, i: number) =
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (i < items.length) {
       const idx = i++;
-      await fn(items[idx], idx);
+      await fn(items[idx]!, idx);
     }
   });
   await Promise.all(workers);
@@ -88,7 +87,18 @@ export async function buildManifest(
   await mapLimit(items, CONCURRENCY, async (it, i) => {
     let lat: number | null = null, lng: number | null = null, takenAt: string | null = null;
     let ar = 1.5; // default 3:2 landscape if EXIF dims are missing
-    let isVideo = false, isHeic = false;
+    let isVideo = false, isHeic = false, motionUid: string | undefined;
+
+    // Live Photo? The still's node lists a related motion-video node.
+    try {
+      const node = await sdk.getNode(it.nodeUid);
+      const tags: number[] = node?.photo?.tags ?? [];
+      const related: string[] = node?.photo?.relatedPhotoNodeUids ?? [];
+      if (related.length && (tags.includes(PhotoTag.LivePhotos) || tags.includes(PhotoTag.MotionPhotos))) {
+        motionUid = related[0];
+      }
+    } catch { /* ignore */ }
+
     const dl = await sdk.getFileDownloader(it.nodeUid);
     const stream = dl.getSeekableStream();
     try {
@@ -107,13 +117,13 @@ export async function buildManifest(
     } catch { /* leave defaults */ } finally {
       // CRITICAL: release the download slot. The SDK caps concurrent downloads at 5; the
       // seekable stream holds a slot until cancelled, so without this it stalls after 5.
-      try { await (stream as any).reader?.cancel(); } catch { /* ignore */ }
+      try { await (stream as { reader?: { cancel(): Promise<unknown> } }).reader?.cancel(); } catch { /* ignore */ }
     }
     photos[i] = {
       id: String(i).padStart(4, '0'),
       nodeUid: it.nodeUid,
       takenAt: takenAt ?? it.captureTime.toISOString(),
-      lat, lng, approx: false, ar, isVideo, isHeic,
+      lat, lng, approx: false, ar, isVideo, isHeic, motionUid,
     };
     onProgress?.(++done, items.length);
   });
@@ -125,15 +135,16 @@ export async function buildManifest(
   const stops: Stop[] = [];
   let cur: Stop | null = null;
   let sumLat = 0, sumLng = 0, n = 0;
-  const openStop = (p: Photo) => {
-    cur = { key: p.nodeUid, place: null, lat: p.lat, lng: p.lng, startTime: p.takenAt, endTime: p.takenAt, description: '', photos: [p] };
+  const openStop = (p: Photo): Stop => {
+    const s: Stop = { key: p.nodeUid, place: null, lat: p.lat, lng: p.lng, startTime: p.takenAt, endTime: p.takenAt, description: '', photos: [p] };
     sumLat = p.lat ?? 0; sumLng = p.lng ?? 0; n = p.lat != null ? 1 : 0;
-    stops.push(cur);
+    stops.push(s);
+    return s;
   };
   for (const p of photos) {
-    if (!cur) { openStop(p); continue; }
+    if (!cur) { cur = openStop(p); continue; }
     const moved = p.lat != null && n > 0 && haversine(p.lat, p.lng!, sumLat / n, sumLng / n) > STOP_RADIUS_M;
-    if (moved) { openStop(p); continue; }
+    if (moved) { cur = openStop(p); continue; }
     cur.photos.push(p);
     cur.endTime = p.takenAt;
     if (p.lat != null) { sumLat += p.lat; sumLng += p.lng!; n++; cur.lat = sumLat / n; cur.lng = sumLng / n; }

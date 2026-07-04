@@ -41,29 +41,73 @@ watch(pct, update);
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-12 px-6 text-center select-none" role="status" aria-live="polite">
-    <svg :viewBox="viewBox" class="w-[min(38vw,150px)] h-auto overflow-visible" fill="none" aria-hidden="true">
-      <g :transform="LOGO_TRANSFORM" stroke-linecap="round" stroke-linejoin="round">
+  <div
+    class="flex flex-col items-center gap-12 px-6 text-center select-none"
+    role="status"
+    aria-live="polite"
+  >
+    <svg
+      :viewBox="viewBox"
+      class="h-auto w-[min(38vw,150px)] overflow-visible"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g
+        :transform="LOGO_TRANSFORM"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
         <!-- ghost: full mark as a same-weight faint line -->
-        <path ref="ghostEl" :d="LOGO_PATH" stroke="currentColor" class="text-neutral-200 dark:text-neutral-700" :stroke-width="STROKE" />
+        <path
+          ref="ghostEl"
+          :d="LOGO_PATH"
+          stroke="currentColor"
+          class="
+            text-neutral-200
+            dark:text-neutral-700
+          "
+          :stroke-width="STROKE"
+        />
         <!-- traced outer contour -->
         <path
-          ref="pathEl" :d="LOGO_OUTLINE" stroke="var(--color-accent)" :stroke-width="STROKE"
+          ref="pathEl"
+          :d="LOGO_OUTLINE"
+          stroke="var(--color-accent)"
+          :stroke-width="STROKE"
           :stroke-dasharray="len"
           :style="{ strokeDashoffset: indeterminate ? undefined : len * (1 - pct), transition: 'stroke-dashoffset .3s linear' }"
           :class="indeterminate ? 'trace-indeterminate' : ''"
         />
         <!-- following dot — only meaningful when tracking real progress (the metadata step) -->
-        <g v-if="!indeterminate && dotReady" :style="{ transform: `translate(${dot.x}px, ${dot.y}px)`, transition: 'transform .3s linear' }">
-          <circle r="7" fill="var(--color-accent)" stroke="#111" stroke-width="1.5">
-            <animate attributeName="r" values="7;10;7" dur="1.1s" repeatCount="indefinite" />
+        <g
+          v-if="!indeterminate && dotReady"
+          :style="{ transform: `translate(${dot.x}px, ${dot.y}px)`, transition: 'transform .3s linear' }"
+        >
+          <circle
+            r="7"
+            fill="var(--color-accent)"
+            stroke="#111"
+            stroke-width="1.5"
+          >
+            <animate
+              attributeName="r"
+              values="7;10;7"
+              dur="1.1s"
+              repeatCount="indefinite"
+            />
           </circle>
         </g>
       </g>
     </svg>
 
-    <div v-if="label || total" class="text-neutral-500 text-sm">
-      {{ label }}<span v-if="total" class="tabular-nums"> · {{ progress }} / {{ total }}</span>
+    <div
+      v-if="label || total"
+      class="text-sm text-neutral-500"
+    >
+      {{ label }}<span
+        v-if="total"
+        class="tabular-nums"
+      > · {{ progress }} / {{ total }}</span>
     </div>
   </div>
 </template>
