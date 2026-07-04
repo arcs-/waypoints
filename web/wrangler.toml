@@ -1,7 +1,0 @@
-# Cloudflare Pages config. Deploy from this `web/` directory.
-#   bun run build && bunx wrangler pages deploy
-# `_headers` (CSP + security headers) and `_redirects` (SPA fallback) live in public/ and are
-# copied into dist/ by Vite, where Cloudflare Pages picks them up automatically.
-name = "waypoints"
-pages_build_output_dir = "dist"
-compatibility_date = "2026-07-04"

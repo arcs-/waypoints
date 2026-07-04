@@ -46,29 +46,31 @@ bun run lint     # ESLint
 
 ## Deploy
 
-Hosted on **Cloudflare Pages** at [waypoints.stillh.art](https://waypoints.stillh.art).
-Config lives in `web/wrangler.toml`; `_headers` (CSP) and `_redirects` (SPA fallback for the
-history-mode router) are in `web/public/` and Vite copies them into `dist/`.
+Hosted on **Cloudflare Pages** at [waypoints.stillh.art](https://waypoints.stillh.art), via Git
+integration. `_headers` (CSP) and `_redirects` (SPA fallback for the history-mode router) live in
+`web/public/` and Vite copies them into `dist/`, where Pages picks them up automatically.
 
-**Cloudflare build settings** (Git integration):
+There is **no `wrangler.toml`** on purpose: for a static SPA it isn't needed, and its mere
+presence makes Cloudflare ignore the build environment variables set in the dashboard. All
+config is in the dashboard → **Settings → Build**:
 
 | Setting | Value |
 | --- | --- |
 | Root directory | `web` |
-| Build command | `bun run build` |
+| Build command | `bun install && bun run build` |
 | Output directory | `dist` |
-| Environment variable | `VITE_MAPTILER_KEY` = your MapTiler key |
 
-`VITE_MAPTILER_KEY` must be set in the Pages build environment — Vite inlines it into the
-bundle at build time (it's a public client key, so this is expected).
+`bun install` is explicit in the build command because the vendored Proton SDK's transitive dep
+(`ky`) only resolves under bun's nested install layout, not npm's hoisting — a plain `npm install`
+(Cloudflare's default) breaks the build.
 
-Or deploy from the CLI:
+Set the MapTiler key under **Settings → Environment variables** (Production **and** Preview):
 
-```sh
-cd web
-bun run build
-bunx wrangler pages deploy   # uses web/wrangler.toml
-```
+| Variable | Value |
+| --- | --- |
+| `VITE_MAPTILER_KEY` | your MapTiler key |
+
+Vite inlines it into the bundle at build time (it's a public client key, so this is expected).
 
 **Two one-time steps after the first deploy:**
 
