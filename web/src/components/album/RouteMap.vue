@@ -32,7 +32,7 @@ function addBasemap() {
   const styleId = theme.value === 'dark' ? 'outdoor-v2-dark' : 'outdoor-v2';
   baseLayers.push(
     // referrerPolicy overrides the page's global `no-referrer` for tile <img>s only, sending
-    // just the bare origin (https://trips.stillh.art — never the album path). MapTiler needs it
+    // just the bare origin (https://waypoints.stillh.art — never the album path). MapTiler needs it
     // to validate the domain-locked API key; without it every tile is rejected as "unknown".
     L.tileLayer(`https://api.maptiler.com/maps/${styleId}/{z}/{x}/{y}.png?key=${key}`, {
       maxNativeZoom: 20, 
@@ -143,7 +143,7 @@ onBeforeUnmount(() => map?.remove());
 -->
 <style>
 /* Leaflet needs real CSS (not utilities) */
-.leaflet-container { height: 100%; width: 100%; font-family: var(--font-mono); background: transparent; }
+.leaflet-container { height: 100%; width: 100%; font-family: var(--font-serif); background: transparent; }
 
 /* Hover-highlight marker: the photo popped larger with a pulsing accent ring */
 .mm-hl {
