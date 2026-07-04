@@ -70,10 +70,16 @@ export default {
     loadingVideo: 'Loading video…',
     decodingHeic: 'Decoding HEIC…',
     decrypting: 'Decrypting…',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
   },
   notFound: {
     message: "This trip took a wrong turn. The page you're looking for doesn't exist.",
     back: 'Back to all trips',
     title: 'Not found',
+  },
+  footer: {
+    author: 'by Patrick',
+    source: 'Source',
   },
 };

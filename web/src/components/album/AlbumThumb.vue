@@ -25,7 +25,6 @@ onBeforeUnmount(() => observer?.disconnect());
 </script>
 
 <template>
-  <!-- Consumer supplies sizing (e.g. aspect-square / aspect-[4/3]). -->
   <div
     ref="el"
     class="

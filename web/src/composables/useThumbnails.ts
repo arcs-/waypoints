@@ -15,6 +15,21 @@ function slot(): Promise<void> {
 }
 function release() { active--; queue.shift()?.(); }
 
+// Proton returns HEIC photos' thumbnails still HEIC-encoded, which browsers can't render —
+// detect the ISOBMFF 'ftyp' + HEIC brand and decode to JPEG. (AVIF renders natively, so skip it.)
+const HEIC_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'heif', 'hevc', 'hevx', 'mif1', 'msf1', 'miff']);
+function isHeicBytes(b: Uint8Array): boolean {
+  if (b.length < 12) return false;
+  const at = (o: number) => String.fromCharCode(b[o]!, b[o + 1]!, b[o + 2]!, b[o + 3]!);
+  return at(4) === 'ftyp' && HEIC_BRANDS.has(at(8).toLowerCase());
+}
+
+async function toBlob(bytes: Uint8Array): Promise<Blob> {
+  if (!isHeicBytes(bytes)) return new Blob([bytes as BlobPart]);
+  const { heicTo } = await import('heic-to'); // lazy: WASM only when a HEIC thumbnail shows up
+  return heicTo({ blob: new Blob([bytes as BlobPart]), type: 'image/jpeg', quality: 0.85 });
+}
+
 export function useThumbnails() {
   const { proton } = useProton();
 
@@ -36,7 +51,7 @@ export function useThumbnails() {
         // Type2 is the larger preview; fall back to Type1 (videos often only have the small one).
         const bytes = (await fetchType(ThumbnailType.Type2)) ?? (await fetchType(ThumbnailType.Type1));
         if (!bytes) return null;
-        const url = URL.createObjectURL(new Blob([bytes]));
+        const url = URL.createObjectURL(await toBlob(bytes));
         cache.set(nodeUid, url);
         return url;
       } finally {

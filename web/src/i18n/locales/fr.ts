@@ -70,10 +70,16 @@ export default {
     loadingVideo: 'Chargement de la vidéo…',
     decodingHeic: 'Décodage HEIC…',
     decrypting: 'Déchiffrement…',
+    zoomIn: 'Agrandir',
+    zoomOut: 'Réduire',
   },
   notFound: {
     message: "Ce voyage a pris un mauvais virage. La page que vous cherchez n'existe pas.",
     back: 'Retour à tous les voyages',
     title: 'Introuvable',
+  },
+  footer: {
+    author: 'par Patrick',
+    source: 'Code source',
   },
 };

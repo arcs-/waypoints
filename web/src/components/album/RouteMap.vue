@@ -23,15 +23,22 @@ function addBasemap() {
   if (!map) return;
   baseLayers.forEach((l) => l.remove());
   baseLayers = [];
-  // Esri gray-canvas trio in both themes: a canvas (water darker than land), a shaded-relief
-  // hillshade for mountains/terrain, and a reference layer for roads + crisp place labels.
-  const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services';
-  const opts: L.TileLayerOptions = { maxNativeZoom: 16, maxZoom: 19 };
-  const variant = theme.value === 'dark' ? 'Dark' : 'Light';
+  // MapTiler stock "outdoor" style (raster XYZ, Leaflet-native) — a European (CH/CZ),
+  // GDPR-focused provider. Relief/hillshade AND labels are baked into one style by their
+  // cartographers, so labels stay legible over the terrain (no custom blending needed).
+  // Light/dark variants swap on theme toggle. Tiles need a key: set VITE_MAPTILER_KEY and
+  // restrict it to this domain in the MapTiler dashboard (the key ships in the client).
+  const key = import.meta.env.VITE_MAPTILER_KEY;
+  const styleId = theme.value === 'dark' ? 'outdoor-v2-dark' : 'outdoor-v2';
   baseLayers.push(
-    L.tileLayer(`${esri}/Canvas/World_${variant}_Gray_Base/MapServer/tile/{z}/{y}/{x}`, { ...opts, className: 'mm-tint' }).addTo(map),
-    L.tileLayer(`${esri}/Elevation/World_Hillshade${variant === 'Dark' ? '_Dark' : ''}/MapServer/tile/{z}/{y}/{x}`, { ...opts, className: variant === 'Dark' ? 'mm-hillshade-dark' : 'mm-hillshade' }).addTo(map),
-    L.tileLayer(`${esri}/Canvas/World_${variant}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, opts).addTo(map),
+    // referrerPolicy overrides the page's global `no-referrer` for tile <img>s only, sending
+    // just the bare origin (https://trips.stillh.art — never the album path). MapTiler needs it
+    // to validate the domain-locked API key; without it every tile is rejected as "unknown".
+    L.tileLayer(`https://api.maptiler.com/maps/${styleId}/{z}/{x}/{y}.png?key=${key}`, {
+      maxNativeZoom: 20, 
+      maxZoom: 20, 
+      referrerPolicy: 'strict-origin-when-cross-origin',
+    }).addTo(map),
   );
 }
 
@@ -137,20 +144,6 @@ onBeforeUnmount(() => map?.remove());
 <style>
 /* Leaflet needs real CSS (not utilities) */
 .leaflet-container { height: 100%; width: 100%; font-family: var(--font-mono); background: transparent; }
-
-/* On-brand map tint on the BASE only (labels/reference overlay stays crisp).
-   Light: neutral gray, darkened + higher contrast so the (already darker) water reads as a
-   mid gray while land stays clearly lighter. */
-.mm-map .mm-tint { filter: grayscale(1) brightness(0.82) contrast(1.12); }
-/* Shaded-relief hillshade multiplied onto the land → mountains/terrain, without darkening
-   the flat water much. */
-.mm-map .mm-hillshade { mix-blend-mode: multiply; opacity: 0.5; }
-[data-theme="dark"] .mm-map .mm-tint {
-  /* Dark: Esri Dark Gray canvas — neutral, slightly lifted so structure stays legible. */
-  filter: grayscale(1) brightness(1.08) contrast(1.05);
-}
-/* Dark hillshade (light relief on a dark base) screened in to reveal terrain. */
-.mm-map .mm-hillshade-dark { mix-blend-mode: screen; opacity: 0.4; }
 
 /* Hover-highlight marker: the photo popped larger with a pulsing accent ring */
 .mm-hl {
