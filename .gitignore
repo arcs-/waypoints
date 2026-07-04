@@ -16,6 +16,8 @@ proton-sdk/**/dist/
 proton-sdk/cli/release/
 *.bun-build
 .wrangler/
+# lockfiles from `install:sdk` (installs each vendored SDK's deps into its own node_modules)
+proton-sdk/**/bun.lock
 
 # scratch spikes (superseded by web/)
 browser-spike/

@@ -25,6 +25,16 @@ export function useMotion() {
         const chunks: Uint8Array[] = [];
         const sink = new WritableStream<Uint8Array>({ write(c) { chunks.push(c); } });
         await dl.downloadToStream(sink).completion();
+        // DIAGNOSTIC: is the moov index before or after mdat? (Firefox stalls on moov-at-end blobs.)
+        {
+          const total = chunks.reduce((n, c) => n + c.length, 0);
+          const all = new Uint8Array(total);
+          let o = 0;
+          for (const c of chunks) { all.set(c, o); o += c.length; }
+          const s = new TextDecoder('latin1').decode(all);
+          const moov = s.indexOf('moov'), mdat = s.indexOf('mdat');
+          console.info(`[waypoints] motion boxes: moov@${moov} mdat@${mdat} size=${total} → ${moov > mdat ? 'moov AT END (Firefox stalls)' : 'fast-start'}`);
+        }
         const url = URL.createObjectURL(new Blob(chunks as BlobPart[]));
         cache.set(nodeUid, url);
         return url;
