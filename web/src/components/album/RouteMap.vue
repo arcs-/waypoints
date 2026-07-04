@@ -31,12 +31,15 @@ function addBasemap() {
   const key = import.meta.env.VITE_MAPTILER_KEY;
   const styleId = theme.value === 'dark' ? 'outdoor-v2-dark' : 'outdoor-v2';
   baseLayers.push(
-    // referrerPolicy overrides the page's global `no-referrer` for tile <img>s only, sending
-    // just the bare origin (https://waypoints.stillh.art — never the album path). MapTiler needs it
-    // to validate the domain-locked API key; without it every tile is rejected as "unknown".
+    // crossOrigin makes tiles CORS requests that send an `Origin` header (MapTiler returns
+    // `access-control-allow-origin: *`, so this is safe). That's what the domain-locked key is
+    // validated against. We can't rely on `Referer` alone: the packaged desktop build runs at
+    // `tauri://localhost`, and that scheme doesn't send a Referer to https hosts — so tiles would
+    // be rejected without this. referrerPolicy is kept for browsers (never leak the album path).
     L.tileLayer(`https://api.maptiler.com/maps/${styleId}/{z}/{x}/{y}.png?key=${key}`, {
-      maxNativeZoom: 20, 
-      maxZoom: 20, 
+      maxNativeZoom: 20,
+      maxZoom: 20,
+      crossOrigin: 'anonymous',
       referrerPolicy: 'strict-origin-when-cross-origin',
     }).addTo(map),
   );
