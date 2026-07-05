@@ -100,4 +100,12 @@ export default {
     author: 'par Patrick',
     source: 'Code source',
   },
+  update: {
+    available: 'Waypoints {v} est disponible',
+    download: 'Télécharger',
+    ignore: 'Ignorer',
+    upToDate: 'Vous êtes à jour',
+    checkFailed: 'La vérification des mises à jour a échoué',
+    dismiss: 'Fermer',
+  },
 };

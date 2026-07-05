@@ -13,7 +13,7 @@ const BASE_URL = 'drive-api.proton.me';
 // x-pm-appversion identity. Format: platform-product[-app]@version, each part dash-free.
 // 'external-drive' is Proton's namespace for third-party SDK apps (matches AUTH_CLIENT_ID);
 // the last segment names THIS app (Waypoints → waypoints, no spaces/dashes).
-const APP_VERSION = 'external-drive-waypoints@0.1.2'; // keep in sync with tauri.conf.json + release tag
+const APP_VERSION = 'external-drive-waypoints@0.1.3'; // keep in sync with tauri.conf.json + release tag
 const AUTH_CLIENT_ID = 'external-drive';
 
 function initCrypto() {

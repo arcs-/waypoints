@@ -2,6 +2,7 @@
 import { useProton } from '@/composables/useProton';
 import LandingPage from '@/components/LandingPage.vue';
 import LoadingRoute from '@/components/common/LoadingRoute.vue';
+import UpdateHint from '@/components/common/UpdateHint.vue';
 
 // Auth gate lives in the shell; the router (RouterView) drives the signed-in app.
 const { loggedIn, initializing } = useProton();
@@ -17,5 +18,6 @@ const { loggedIn, initializing } = useProton();
     />
     <LandingPage v-else-if="!loggedIn" />
     <RouterView v-else />
+    <UpdateHint />
   </main>
 </template>

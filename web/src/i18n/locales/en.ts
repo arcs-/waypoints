@@ -100,4 +100,12 @@ export default {
     author: 'by Patrick',
     source: 'Source',
   },
+  update: {
+    available: 'Waypoints {v} is available',
+    download: 'Download',
+    ignore: 'Ignore',
+    upToDate: "You're up to date",
+    checkFailed: 'Checking for updates failed',
+    dismiss: 'Dismiss',
+  },
 };

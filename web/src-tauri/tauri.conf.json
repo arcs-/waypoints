@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Waypoints",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "identifier": "art.stillh.waypoints",
   "build": {
     "frontendDist": "../dist",
@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com; media-src 'self' blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://*.proton.me https://api.maptiler.com; worker-src 'self' blob:; frame-src https://*.proton.me"
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.maptiler.com; media-src 'self' blob:; font-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://*.proton.me https://api.maptiler.com https://api.github.com; worker-src 'self' blob:; frame-src https://*.proton.me"
     }
   },
   "bundle": {

@@ -14,7 +14,8 @@ them locally, and lays each trip out as a timeline of stops on a map.
   allowlisted origins. The Tauri webview runs at `tauri://localhost`, which Proton allows; an
   arbitrary web domain isn't allowed, so there's no hosted web version yet.
 - **Talks only to Proton and MapTiler** — both European, privacy-respecting. No analytics, CDNs,
-  or web fonts.
+  or web fonts. (Exception: the desktop app asks GitHub's public releases feed — at most once a
+  day — whether a newer version exists; nothing is sent beyond the request itself.)
 - **Vendored, pre-production SDK.** Uses the unstable `@protontech/drive-sdk` (vendored under
   `proton-sdk/`); breakage on Proton's side is expected and fixed by hand. Provenance, local
   patches, and the update procedure are documented in [`proton-sdk/VENDORED.md`](proton-sdk/VENDORED.md).

@@ -121,6 +121,58 @@ export function onNativeLocale(cb: (code: string) => void): void {
     .catch(() => { /* API unavailable */ });
 }
 
+// ---- Update check ----
+// Desktop only: a web page always serves the latest build, so there is nothing to check.
+// Reads GitHub's public releases feed directly from the webview (GitHub sends
+// `access-control-allow-origin: *`, and the CSP in tauri.conf.json allows api.github.com).
+
+export const hasUpdateCheck = isTauri;
+
+export interface UpdateInfo {
+  version: string;
+  url: string; // .dmg asset when the release has one, else the release page
+}
+
+const RELEASES_LATEST = 'https://api.github.com/repos/arcs-/waypoints/releases/latest';
+
+// True when `latest` is a strictly newer x.y.z than `current`; malformed tags compare false.
+function isNewer(latest: string, current: string): boolean {
+  const a = latest.split('.').map(Number);
+  const b = current.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0);
+    if (d) return d > 0;
+  }
+  return false;
+}
+
+// Resolves to the newer version (with a download URL) or null when up to date / not desktop.
+// Throws on network/API failure so a manual check can tell "up to date" from "check failed".
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (!isTauri) return null;
+  const { getVersion } = await import('@tauri-apps/api/app');
+  const res = await fetch(RELEASES_LATEST, { headers: { accept: 'application/vnd.github+json' } });
+  if (!res.ok) throw new Error(`GitHub release check failed: ${res.status}`);
+  const release = (await res.json()) as {
+    tag_name?: string;
+    html_url?: string;
+    assets?: { name?: string; browser_download_url?: string }[];
+  };
+  const latest = (release.tag_name ?? '').replace(/^v/, '');
+  if (!latest || !isNewer(latest, await getVersion())) return null;
+  const dmg = release.assets?.find((a) => a.name?.endsWith('.dmg'))?.browser_download_url;
+  return { version: latest, url: dmg ?? release.html_url ?? 'https://github.com/arcs-/waypoints/releases/latest' };
+}
+
+// Desktop only: the native "Check for Updates…" menu item (built in src-tauri) emits a
+// `check-update` event. No-op in a browser.
+export function onUpdateCheckRequested(cb: () => void): void {
+  if (!isTauri) return;
+  import('@tauri-apps/api/event')
+    .then(({ listen }) => listen('check-update', () => cb()))
+    .catch(() => { /* API unavailable */ });
+}
+
 // ---- Credential storage ----
 // Where the session blob lives matters (it holds tokens AND the userKeyPassword):
 //   - browser: localStorage (personal machine only — plaintext, same as before)

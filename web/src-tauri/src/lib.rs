@@ -82,6 +82,8 @@ pub fn run() {
       // Footer links, now in the native Help menu (opened in the default browser).
       "link-source" => { let _ = app.opener().open_url("https://github.com/arcs-/waypoints", None::<&str>); }
       "link-portfolio" => { let _ = app.opener().open_url("https://stillh.art", None::<&str>); }
+      // "Check for Updates…" — the frontend runs the check and shows the result hint.
+      "check-update" => { let _ = app.emit("check-update", ()); }
       _ => {}
     })
     .setup(|app| {
@@ -112,8 +114,11 @@ pub fn run() {
           ))
           .build();
 
+        let check_update = MenuItemBuilder::with_id("check-update", "Check for Updates…").build(app)?;
         let app_menu = SubmenuBuilder::new(app.handle(), "Waypoints")
           .about(Some(about))
+          .separator()
+          .item(&check_update)
           .separator()
           .services()
           .separator()
