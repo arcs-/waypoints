@@ -3,7 +3,7 @@ import { useProton } from './useProton';
 import { buildManifest } from '@/lib/buildManifest';
 import { readAlbumFile, writeAlbumFile } from '@/lib/protonIndex';
 import type { AlbumRef } from './useAlbums';
-import type { StoredAlbum } from '@/lib/types';
+import type { Photo, StoredAlbum } from '@/lib/types';
 
 // Source of truth + cache: one JSON per album in Proton /.waypoints/<slug>.json.
 // Reading it skips the expensive per-photo EXIF reads + reverse-geocoding.
@@ -97,5 +97,36 @@ export function useAlbumManifest() {
     persist(album, manifest.value);
   }
 
-  return { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle };
+  // Remove a photo from the album on Proton (and optionally trash the file), then mirror the
+  // change into the manifest. The Live Photo motion node rides along but is best-effort: it may
+  // not be an album member itself, so only the main photo's result is checked.
+  async function removePhoto(album: AlbumRef, photo: Photo, trash: boolean) {
+    const p = proton.value;
+    const m = manifest.value;
+    if (!p || !m) throw new Error('Not signed in');
+
+    const uids = [photo.nodeUid, ...(photo.motionUid ? [photo.motionUid] : [])];
+    for await (const r of p.photos.removePhotosFromAlbum(album.uid, uids)) {
+      if (!r.ok && r.uid === photo.nodeUid) throw r.error;
+    }
+    if (trash) {
+      for await (const r of p.photos.trashNodes(uids)) {
+        if (!r.ok && r.uid === photo.nodeUid) throw r.error;
+      }
+    }
+
+    // Replace (don't mutate) — manifest is a shallowRef, the feed re-renders on the new object.
+    const stops = m.stops
+      .map((s) => ({ ...s, photos: s.photos.filter((x) => x.nodeUid !== photo.nodeUid) }))
+      .filter((s) => s.photos.length > 0);
+    const route = stops.filter((s) => s.lat != null).map((s) => [s.lat!, s.lng!] as [number, number]);
+    const next: StoredAlbum = { ...m, stops, route };
+    manifest.value = next;
+    // Keep the freshness signal consistent so the next visit doesn't force a full rebuild
+    // over a count mismatch (Proton's bumped lastActivityTime may still trigger one).
+    if (album.photoCount != null) album.photoCount = countPhotos(next);
+    persist(album, next);
+  }
+
+  return { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle, removePhoto };
 }

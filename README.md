@@ -16,7 +16,8 @@ them locally, and lays each trip out as a timeline of stops on a map.
 - **Talks only to Proton and MapTiler** — both European, privacy-respecting. No analytics, CDNs,
   or web fonts.
 - **Vendored, pre-production SDK.** Uses the unstable `@protontech/drive-sdk` (vendored under
-  `proton-sdk/`); breakage on Proton's side is expected and fixed by hand.
+  `proton-sdk/`); breakage on Proton's side is expected and fixed by hand. Provenance, local
+  patches, and the update procedure are documented in [`proton-sdk/VENDORED.md`](proton-sdk/VENDORED.md).
 
 ## External dependencies
 
@@ -39,3 +40,6 @@ cp .env.example .env   # set VITE_MAPTILER_KEY
 bun install
 bun run app            # desktop app, hot-reload  (bun run dev for the raw web build)
 ```
+
+Releases: see [`docs/RELEASING.md`](docs/RELEASING.md) for where the version lives and how a
+release is cut.

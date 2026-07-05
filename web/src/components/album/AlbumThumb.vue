@@ -11,7 +11,9 @@ let observer: IntersectionObserver | null = null;
 
 async function load() {
   if (url.value) return;
-  url.value = await thumbUrl(props.nodeUid);
+  try {
+    url.value = await thumbUrl(props.nodeUid);
+  } catch { /* leave the neutral tile; no retry path once the observer disconnected */ }
 }
 
 onMounted(() => {

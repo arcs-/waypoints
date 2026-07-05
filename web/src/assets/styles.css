@@ -33,8 +33,13 @@
 
 @layer base {
   html, body { margin: 0; }
+  /* Slightly larger type everywhere: 106.25% of the browser default = 17px. All Tailwind
+     text-*/spacing utilities are rem-based, so the whole scale follows proportionally. */
+  html { font-size: 106.25%; }
   #app { min-height: 100dvh; }
   body { @apply font-serif bg-white text-neutral-900 dark:bg-neutral-900 dark:text-white; }
+  /* WebKit gives type="search" (and friends) a native rounded look — keep text fields square */
+  input, textarea { appearance: none; border-radius: 0; }
   ::selection { background: var(--color-accent); color: #111; }
   a { color: inherit; text-decoration: none; }
 

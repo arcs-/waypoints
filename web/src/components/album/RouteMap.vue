@@ -6,13 +6,15 @@ import { useThumbnails } from '@/composables/useThumbnails';
 import { useTheme } from '@/composables/useTheme';
 import type { Manifest, Photo } from '@/lib/types';
 
-const props = defineProps<{ manifest: Manifest; highlight?: Photo | null; activeStop?: number }>();
+const props = defineProps<{ manifest: Manifest; highlight?: Photo | null; activeStop?: number | null }>();
 const { t } = useI18n();
 const { thumbUrl } = useThumbnails();
 const { theme } = useTheme();
 const el = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let hl: L.Marker | null = null;
+let routeLine: L.Polyline | null = null;
+let dayLine: L.Polyline | null = null; // full-intensity overlay for the day being read
 let baseLayers: L.TileLayer[] = [];
 let overviewZoom = 0; // the "whole trip" zoom set on load; scroll-follow zooms in from here
 const stopMarkers = new Map<number, L.Marker>();
@@ -45,11 +47,16 @@ function addBasemap() {
   );
 }
 
+// Route line color per theme: the accent yellow washes out against the light outdoor tiles,
+// so light mode draws the line black; dark mode keeps the accent.
+const routeColor = () => (theme.value === 'dark' ? '#ffd168' : '#333');
+
 function stopIcon(url: string | null, label: number): L.DivIcon {
   const img = url ? `<img src="${url}" alt="" />` : '';
+  const badge = label > 1 ? `<span class="mm-badge">${label}</span>` : ''; // a count of 1 is noise
   return L.divIcon({
     className: 'mm-icon',
-    html: `<div class="mm-wrap"><div class="mm-dot">${img}</div><span class="mm-badge">${label}</span></div>`,
+    html: `<div class="mm-wrap"><div class="mm-dot">${img}</div>${badge}</div>`,
     iconSize: [58, 58], iconAnchor: [29, 29],
   });
 }
@@ -64,7 +71,7 @@ onMounted(() => {
   addBasemap();
 
   if (props.manifest.route.length) {
-    L.polyline(props.manifest.route, { color: '#ffd168', weight: 3, opacity: 0.95 }).addTo(map);
+    routeLine = L.polyline(props.manifest.route, { color: routeColor(), weight: 3, opacity: 0.95 }).addTo(map);
   }
   if (props.manifest.bounds) map.fitBounds(props.manifest.bounds, { padding: [50, 50] });
   else if (props.manifest.route.length) map.setView(props.manifest.route[0]!, 10);
@@ -74,14 +81,14 @@ onMounted(() => {
   props.manifest.stops.flatMap((s) => s.photos)
     .filter((p) => p.lat != null && !p.approx)
     .forEach((p) => {
-      L.circleMarker([p.lat!, p.lng!], { radius: 3, color: '#111', weight: 0.75, fillColor: '#ffd168', fillOpacity: 0.9, interactive: false }).addTo(map!);
+      L.circleMarker([p.lat!, p.lng!], { radius: 7, color: '#111', weight: 1, fillColor: '#ffd168', fillOpacity: 0.9, interactive: false }).addTo(map!);
     });
 
   props.manifest.stops.forEach((stop, i) => {
     if (stop.lat == null) return;
     const marker = L.marker([stop.lat, stop.lng!], {
       icon: stopIcon(null, stop.photos.length),
-      title: [stop.title || stop.place, `${stop.photos.length} photos`].filter(Boolean).join(' · '),
+      title: [stop.title || stop.place, t('album.photos', { n: stop.photos.length }, stop.photos.length)].filter(Boolean).join(' · '),
       riseOnHover: true,
     }).addTo(map!);
     marker.on('click', () => {
@@ -91,28 +98,59 @@ onMounted(() => {
       card.classList.add('stop-flash');
       setTimeout(() => card.classList.remove('stop-flash'), 1400);
     });
-    thumbUrl(stop.photos[0]!.nodeUid).then((url) => marker.setIcon(stopIcon(url, stop.photos.length)));
+    thumbUrl(stop.photos[0]!.nodeUid).then((url) => marker.setIcon(stopIcon(url, stop.photos.length))).catch(() => {});
     stopMarkers.set(i, marker);
   });
 });
 
-// Re-theme the basemap when the light/dark switch is toggled.
-watch(theme, addBasemap);
+// Re-theme the basemap and the route lines when the light/dark switch is toggled.
+watch(theme, () => {
+  addBasemap();
+  routeLine?.setStyle({ color: routeColor() });
+  dayLine?.setStyle({ color: routeColor() });
+});
+
+// Route emphasis while reading: a multi-day trip that criss-crosses the same area (a city
+// walked for days) draws every leg at once, which reads as scribble. While a stop is active,
+// dim the full route and overlay only the segment for the day being read — its stops plus the
+// arrival leg. At the top (overview), the whole route is back at full intensity.
+// route[] holds only located stops in order, so the i-th located stop is route[i].
+function emphasiseDay(active: number | null | undefined) {
+  if (!map || !routeLine) return;
+  dayLine?.remove(); dayLine = null;
+  const day = active == null ? null : props.manifest.stops[active]?.startTime?.slice(0, 10);
+  let seg: [number, number][] = [];
+  if (day) {
+    const located = props.manifest.stops.filter((s) => s.lat != null);
+    const ris = located.map((s, ri) => ({ s, ri })).filter(({ s }) => s.startTime?.slice(0, 10) === day);
+    if (ris.length) seg = props.manifest.route.slice(Math.max(0, ris[0]!.ri - 1), ris[ris.length - 1]!.ri + 1);
+  }
+  if (seg.length > 1) {
+    routeLine.setStyle({ opacity: 0.25 });
+    dayLine = L.polyline(seg, { color: routeColor(), weight: 4, opacity: 0.95 }).addTo(map);
+  } else {
+    routeLine.setStyle({ opacity: 0.95 });
+  }
+}
 
 // Scroll-follow: emphasise the current stop's marker, and zoom the map to match the read.
-// At the top (first stop) keep the whole-trip overview; once scrolled into the trip, ease in
-// a couple levels closer — near enough to read the place, far enough to see its surroundings.
+// `null` (the top of the page) keeps the whole-trip overview; once scrolled into the feed —
+// first stop included — ease in a couple levels closer: near enough to read the place, far
+// enough to see its surroundings.
 watch(() => props.activeStop, (i) => {
-  if (!map || i == null) return;
-  const s = props.manifest.stops[i];
+  if (!map) return;
   stopMarkers.forEach((m, idx) => m.getElement()?.classList.toggle('mm-active', idx === i));
-  if (i === 0 && props.manifest.bounds) {
-    map.flyToBounds(props.manifest.bounds, { padding: [50, 50], duration: 0.6 });
-  } else if (s?.lat != null) {
-    // ~3 levels closer than the overview, kept in a readable band (13–15) — but never BELOW
+  emphasiseDay(i);
+  if (i == null) {
+    if (props.manifest.bounds) map.flyToBounds(props.manifest.bounds, { padding: [50, 50], duration: 0.6 });
+    return;
+  }
+  const s = props.manifest.stops[i];
+  if (s?.lat != null) {
+    // ~4 levels closer than the overview, kept in a readable band (15–17) — but never BELOW
     // the overview: a small tour's fitBounds already sits above the band, and clamping down
     // would zoom out on scroll.
-    const closer = Math.max(Math.min(Math.max(overviewZoom + 3, 13), 15), overviewZoom);
+    const closer = Math.max(Math.min(Math.max(overviewZoom + 4, 15), 17), overviewZoom);
     map.flyTo([s.lat, s.lng!], closer, { duration: 0.6 });
   }
 });
@@ -123,7 +161,7 @@ watch(() => props.highlight, async (p) => {
   if (hl) { hl.remove(); hl = null; }
   if (!p || p.lat == null) return;
   hl = L.marker([p.lat, p.lng!], { icon: hlIcon(null), zIndexOffset: 1000, interactive: false }).addTo(map);
-  const url = await thumbUrl(p.nodeUid);
+  const url = await thumbUrl(p.nodeUid).catch(() => null);
   if (props.highlight === p && hl) hl.setIcon(hlIcon(url));
 });
 

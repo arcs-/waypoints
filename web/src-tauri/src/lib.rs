@@ -31,13 +31,43 @@ async fn keychain_delete() -> Result<(), String> {
   }
 }
 
+// Small non-secret preferences (e.g. the chosen UI language) in a JSON file in the app config
+// dir. The WebView's localStorage isn't reliably persisted for the custom tauri:// origin.
+fn prefs_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+  use tauri::Manager;
+  let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+  std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+  Ok(dir.join("prefs.json"))
+}
+
+fn read_prefs(app: &tauri::AppHandle) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+  Ok(
+    std::fs::read_to_string(prefs_path(app)?)
+      .ok()
+      .and_then(|s| serde_json::from_str(&s).ok())
+      .unwrap_or_default(),
+  )
+}
+
+#[tauri::command]
+async fn pref_get(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
+  Ok(read_prefs(&app)?.get(&key).and_then(|v| v.as_str()).map(String::from))
+}
+
+#[tauri::command]
+async fn pref_set(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
+  let mut prefs = read_prefs(&app)?;
+  prefs.insert(key, serde_json::Value::String(value));
+  std::fs::write(prefs_path(&app)?, serde_json::Value::Object(prefs).to_string()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   use tauri::{Emitter, Manager};
   use tauri_plugin_opener::OpenerExt;
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
-    .invoke_handler(tauri::generate_handler![keychain_get, keychain_set, keychain_delete])
+    .invoke_handler(tauri::generate_handler![keychain_get, keychain_set, keychain_delete, pref_get, pref_set])
     .on_menu_event(|app, event| match event.id().as_ref() {
       // Language items emit `set-locale` to the frontend, which applies it to i18n.
       "lang-en" => { let _ = app.emit("set-locale", "en"); }

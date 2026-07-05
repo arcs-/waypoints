@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import AlbumCard from '@/components/album/AlbumCard.vue';
 import AppLogo from '@/components/common/AppLogo.vue';
 import LoadingRoute from '@/components/common/LoadingRoute.vue';
@@ -10,7 +10,7 @@ import RefreshButton from '@/components/common/RefreshButton.vue';
 import AppFooter from '@/components/common/AppFooter.vue';
 import IconExternalLink from '@/components/icons/IconExternalLink.vue';
 import IconSignOut from '@/components/icons/IconSignOut.vue';
-import { isTauri } from '@/lib/platform';
+import { hasRefreshButton, hasFullscreenToggle, hasLanguageSwitcher, hasInAppFooter } from '@/lib/host';
 import { useI18n } from 'vue-i18n';
 import { useAlbums } from '@/composables/useAlbums';
 import { useProton } from '@/composables/useProton';
@@ -23,10 +23,17 @@ const { logout } = useProton();
 
 onMounted(() => (document.title = APP_NAME));
 
+// Album search: plain case-insensitive name filter.
+const query = ref('');
+const filtered = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  return q ? albums.value.filter((a) => a.name.toLowerCase().includes(q)) : albums.value;
+});
+
 // Group by year of the first-image date (already sorted newest-first).
 const groups = computed(() => {
   const map = new Map<string, typeof albums.value>();
-  for (const a of albums.value) {
+  for (const a of filtered.value) {
     const t = a.date ?? a.lastActivityTime;
     const year = t ? String(new Date(t).getFullYear()) : '—';
     (map.get(year) ?? map.set(year, []).get(year)!).push(a);
@@ -39,17 +46,11 @@ const groups = computed(() => {
   <div
     class="
       mx-auto max-w-7xl px-5 pt-16 pb-24
-      sm:px-16 sm:pt-28 sm:pb-40
+      sm:px-16 sm:pt-24 sm:pb-40
     "
   >
     <!-- title left, control group right — same row -->
-    <header
-      class="
-        mb-12 flex items-center justify-between gap-4
-        sm:mb-24
-        lg:mb-32
-      "
-    >
+    <header class="mb-12 flex items-center justify-between gap-4">
       <h1
         class="
           flex items-center gap-6 text-3xl tracking-tight
@@ -72,10 +73,10 @@ const groups = computed(() => {
           dark:border-neutral-800 dark:bg-neutral-900/70
         "
       >
-        <RefreshButton v-if="isTauri" />
-        <FullscreenToggle v-if="!isTauri" />
+        <RefreshButton v-if="hasRefreshButton" />
+        <FullscreenToggle v-if="hasFullscreenToggle" />
         <ThemeToggle />
-        <LanguageSwitcher v-if="!isTauri" />
+        <LanguageSwitcher v-if="hasLanguageSwitcher" />
         <a
           :href="PROTON_PHOTOS_URL"
           target="_blank"
@@ -150,44 +151,68 @@ const groups = computed(() => {
       </a>
     </div>
 
-    <div
-      v-else
-      class="
-        space-y-14
-        sm:space-y-28
-      "
-    >
-      <section
-        v-for="[year, list] in groups"
-        :key="year"
+    <div v-else>
+      <input
+        v-model="query"
+        type="search"
+        :placeholder="t('overview.search')"
+        :aria-label="t('overview.search')"
+        class="
+          mb-10 w-44 border-b border-transparent bg-transparent py-1 text-sm
+          outline-none
+          placeholder:text-neutral-400
+          hover:border-neutral-200
+          focus:border-neutral-300
+          sm:mb-16
+          dark:placeholder:text-neutral-600
+          dark:hover:border-neutral-800
+          dark:focus:border-neutral-700
+        "
       >
-        <h2
-          class="
-            mb-6 text-sm font-medium tracking-widest text-neutral-500
-            sm:mb-10
-          "
+      <p
+        v-if="!groups.length"
+        class="text-neutral-500"
+      >
+        {{ t('overview.noResults', { q: query.trim() }) }}
+      </p>
+      <div
+        class="
+          space-y-14
+          sm:space-y-28
+        "
+      >
+        <section
+          v-for="[year, list] in groups"
+          :key="year"
         >
-          {{ year }}
-        </h2>
-        <ul
-          class="
-            m-0 grid list-none grid-cols-1 gap-7 p-0
-            sm:grid-cols-2 sm:gap-12
-            lg:gap-16
-          "
-        >
-          <li
-            v-for="a in list"
-            :key="a.uid"
+          <h2
+            class="
+              mb-6 text-sm font-medium tracking-widest text-neutral-500
+              sm:mb-10
+            "
           >
-            <AlbumCard :album="a" />
-          </li>
-        </ul>
-      </section>
+            {{ year }}
+          </h2>
+          <ul
+            class="
+              m-0 grid list-none grid-cols-1 gap-7 p-0
+              sm:grid-cols-2 sm:gap-12
+              lg:gap-16
+            "
+          >
+            <li
+              v-for="a in list"
+              :key="a.uid"
+            >
+              <AlbumCard :album="a" />
+            </li>
+          </ul>
+        </section>
+      </div>
     </div>
 
     <AppFooter
-      v-if="!isTauri"
+      v-if="hasInAppFooter"
       class="
         mt-16
         sm:mt-24

@@ -17,10 +17,10 @@ import type { Photo } from '@/lib/types';
 const props = defineProps<{ slug: string }>();
 const { t } = useI18n();
 const { bySlug, albums } = useAlbums();
-const { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle } = useAlbumManifest();
+const { manifest, loading, building, progress, total, error, ensure, saveDescription, saveTitle, removePhoto } = useAlbumManifest();
 const protonUrl = ref<string | null>(null);
 const hovered = ref<Photo | null>(null);
-const activeStop = ref<number>(0);
+const activeStop = ref<number | null>(null); // null = at the top of the page → map overview
 
 const album = computed(() => bySlug(props.slug));
 const isEmpty = computed(() => !!manifest.value && !manifest.value.stops.some((s) => s.photos.length));
@@ -30,6 +30,10 @@ watch([album], () => {
   ensure(album.value);
   protonUrl.value = albumProtonUrl(album.value.uid);
 }, { immediate: true });
+
+async function onRemovePhoto(p: Photo, trash: boolean) {
+  if (album.value) await removePhoto(album.value, p, trash);
+}
 
 // Reading photo metadata is expensive and not resumable — guard against leaving mid-build.
 function beforeUnload(e: BeforeUnloadEvent) {
@@ -133,6 +137,7 @@ onBeforeRouteLeave(() => (building.value ? window.confirm(t('album.leaveWarning'
     <PhotoFeed
       :manifest="manifest"
       :proton-url="protonUrl"
+      :remove-photo="onRemovePhoto"
       @save-description="(key, text) => album && saveDescription(album, key, text)"
       @save-title="(key, text) => album && saveTitle(album, key, text)"
       @hover-photo="hovered = $event"

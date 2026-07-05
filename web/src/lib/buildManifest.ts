@@ -6,7 +6,7 @@ import type { Manifest, Photo, Stop } from './types';
 
 const HEAD_BYTES = 256 * 1024; // EXIF (incl. GPS) lives at the head of the file
 const CONCURRENCY = 4; // be a good citizen re: rate limits
-const STOP_RADIUS_M = 1000; // start a new stop only after moving ≥N km from the current centroid
+const STOP_RADIUS_M = 1000; // start a new stop only after moving this far (meters) from the current centroid
 
 // MP4/MOV, HEIC/HEIF and AVIF all share the ISOBMFF 'ftyp' container; classify by major brand.
 // Only explicit image brands are treated as images; anything else with ftyp is video

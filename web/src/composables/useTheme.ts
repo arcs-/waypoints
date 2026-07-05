@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { setNativeTheme } from '@/lib/host';
 
 // Manual light/dark theme, persisted. Applied as `data-theme` on <html>; Tailwind's `dark:`
 // variant + the map CSS are keyed off that attribute (see styles.css @custom-variant).
@@ -12,14 +13,10 @@ function initial(): Theme {
 }
 
 const theme = ref<Theme>(initial());
-const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 function apply(t: Theme) {
   document.documentElement.dataset.theme = t;
-  // In the Tauri desktop shell, match the native window (incl. the macOS title bar) to the theme.
-  if (isTauri) {
-    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().setTheme(t)).catch(() => {});
-  }
+  setNativeTheme(t);
 }
 apply(theme.value); // run on module load (imported from main.ts) so there's no flash
 

@@ -6,7 +6,7 @@ import betterTailwind from 'eslint-plugin-better-tailwindcss';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'src-tauri/target/**'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

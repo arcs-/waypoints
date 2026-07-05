@@ -1,0 +1,93 @@
+--- a/incubating/account/js/src/auth.ts
++++ b/incubating/account/js/src/auth.ts
+@@ -147,7 +147,7 @@
+                 throw error;
+             }
+ 
+-            const userKeyPassword = parseUserKeyPassword(encryptionKey, response.Payload);
++            const userKeyPassword = await parseUserKeyPassword(encryptionKey, response.Payload);
+ 
+             this.logger.debug('Authentication successful');
+ 
+--- a/incubating/account/js/src/authWeb.ts
++++ b/incubating/account/js/src/authWeb.ts
+@@ -1,7 +1,6 @@
+-import { createDecipheriv, randomBytes } from 'node:crypto';
+-
++// Cross-platform (browser + Bun) fork-login crypto using Web Crypto — no node:crypto.
+ const PROTON_ACCOUNT_URL = 'https://account.proton.me';
+-const FORK_AAD = Buffer.from('fork', 'utf8');
++const FORK_AAD = new TextEncoder().encode('fork');
+ const GCM_NONCE_LENGTH = 12;
+ const GCM_TAG_LENGTH = 16;
+ 
+@@ -14,15 +13,28 @@
+     keyPassword?: string;
+ };
+ 
++function toBase64(bytes: Uint8Array): string {
++    let s = '';
++    for (const b of bytes) s += String.fromCharCode(b);
++    return btoa(s);
++}
++
++function fromBase64(b64: string): Uint8Array {
++    const s = atob(b64);
++    const out = new Uint8Array(s.length);
++    for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
++    return out;
++}
++
+ export function generateSignInUrl(
+     authClientId: string,
+     userCode: string,
+ ): {
+-    encryptionKey: Buffer;
++    encryptionKey: Uint8Array;
+     signInUrl: string;
+ } {
+-    const encryptionKey = randomBytes(32);
+-    const base64EncodedKey = encryptionKey.toString('base64');
++    const encryptionKey = crypto.getRandomValues(new Uint8Array(32));
++    const base64EncodedKey = toBase64(encryptionKey);
+     const payload = `0:${userCode}:${base64EncodedKey}:${authClientId}`;
+     const signInUrl = `${PROTON_ACCOUNT_URL}/desktop/login?app=drive&pv=3#payload=${encodeURIComponent(payload)}`;
+ 
+@@ -32,24 +44,27 @@
+     };
+ }
+ 
+-export function parseUserKeyPassword(encryptionKey: Buffer, encryptedPayload: string): string {
+-    const decryptedPayload = decryptForkPayload(encryptedPayload, encryptionKey);
++export async function parseUserKeyPassword(encryptionKey: Uint8Array, encryptedPayload: string): Promise<string> {
++    const decryptedPayload = await decryptForkPayload(encryptedPayload, encryptionKey);
+     const userKeyPassword = parseForkUserKeyPassword(decryptedPayload);
+     return userKeyPassword;
+ }
+ 
+-function decryptForkPayload(encodedPayload: string, encryptionKey: Buffer): string {
+-    const blob = Buffer.from(encodedPayload, 'base64');
++async function decryptForkPayload(encodedPayload: string, encryptionKey: Uint8Array): Promise<string> {
++    const blob = fromBase64(encodedPayload);
+     if (blob.length < GCM_NONCE_LENGTH + GCM_TAG_LENGTH) {
+         throw new Error('Invalid fork payload blob length');
+     }
+     const nonce = blob.subarray(0, GCM_NONCE_LENGTH);
+-    const tag = blob.subarray(blob.length - GCM_TAG_LENGTH);
+-    const ciphertext = blob.subarray(GCM_NONCE_LENGTH, blob.length - GCM_TAG_LENGTH);
+-    const decipher = createDecipheriv('aes-256-gcm', encryptionKey, nonce);
+-    decipher.setAuthTag(tag);
+-    decipher.setAAD(FORK_AAD);
+-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
++    // Web Crypto expects ciphertext || tag together (everything after the nonce).
++    const cipherAndTag = blob.subarray(GCM_NONCE_LENGTH);
++    const key = await crypto.subtle.importKey('raw', encryptionKey, { name: 'AES-GCM' }, false, ['decrypt']);
++    const plaintext = await crypto.subtle.decrypt(
++        { name: 'AES-GCM', iv: nonce, additionalData: FORK_AAD, tagLength: GCM_TAG_LENGTH * 8 },
++        key,
++        cipherAndTag,
++    );
++    return new TextDecoder().decode(plaintext);
+ }
+ 
+ function parseForkUserKeyPassword(decryptedPayloadJson: string): string {

@@ -7,12 +7,20 @@ import { useMotion } from '@/composables/useMotion';
 import { playableVideoUrl } from '@/lib/videoUrl';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconDownload from '@/components/icons/IconDownload.vue';
+import IconRemove from '@/components/icons/IconRemove.vue';
+import IconTrash from '@/components/icons/IconTrash.vue';
 import type { Photo } from '@/lib/types';
 
 const { t, locale } = useI18n();
 
 // index === null → closed. Reuses the in-browser thumbnail decryption + cache.
-const props = defineProps<{ modelValue: number | null; photos: Photo[] }>();
+// `remove` (when provided) removes the current photo from the album; trash=true also
+// moves the file to the Proton trash. The parent owns the SDK work and the index clamp.
+const props = defineProps<{
+  modelValue: number | null;
+  photos: Photo[];
+  remove?: (p: Photo, trash: boolean) => Promise<void>;
+}>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: number | null): void }>();
 
 const { thumbUrl } = useThumbnails();
@@ -26,7 +34,39 @@ const liveLoading = ref(false); // motion clip downloading/decrypting → corner
 const liveFailed = ref(false); // true if the motion clip can't be decoded (e.g. HEVC) → keep still
 const loading = ref(false);
 const downloading = ref(false);
+const removing = ref(false);
 const zoomed = ref(false);
+
+// window.confirm/alert are silent no-ops in Tauri's WKWebView (no JS dialog delegate — confirm
+// returns falsy immediately), so confirmation is a two-step armed button: the first click arms
+// it (the button shows "click again"), a second click within 4s executes. Errors show inline.
+const armed = ref<'remove' | 'trash' | null>(null);
+const removeError = ref(false);
+let armTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function removePhoto(trash: boolean) {
+  const p = current.value;
+  if (!p || removing.value || !props.remove) return;
+  const kind = trash ? 'trash' : 'remove';
+  if (armTimer) clearTimeout(armTimer);
+  if (armed.value !== kind) {
+    armed.value = kind;
+    armTimer = setTimeout(() => (armed.value = null), 4000);
+    return;
+  }
+  armed.value = null;
+  removing.value = true;
+  removeError.value = false;
+  try {
+    await props.remove(p, trash);
+  } catch (e) {
+    console.warn('remove photo failed', e);
+    removeError.value = true;
+    setTimeout(() => (removeError.value = false), 4000);
+  } finally {
+    removing.value = false;
+  }
+}
 
 function onLiveCanPlay(e: Event) { (e.target as HTMLVideoElement).play().catch(() => { /* ignore */ }); }
 
@@ -125,7 +165,7 @@ function preloadAround(i: number) {
 
 async function show() {
   const p = current.value;
-  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false; liveLoading.value = false; liveFailed.value = false; zoomed.value = false; arMeasured.value = null;
+  url.value = null; videoUrl.value = null; liveSrc.value = null; livePlaying.value = false; liveLoading.value = false; liveFailed.value = false; zoomed.value = false; arMeasured.value = null; armed.value = null;
   if (!p) return;
   loading.value = true;
   if (p.isVideo) {
@@ -139,7 +179,7 @@ async function show() {
   } else if (p.isHeic) {
     // Show the decoded thumbnail first (already cached from the grid — instant, no new
     // download), then upgrade to the full-res decode in the background.
-    const thumb = await thumbUrl(p.nodeUid);
+    const thumb = await thumbUrl(p.nodeUid).catch(() => null);
     if (current.value?.nodeUid === p.nodeUid && thumb) { url.value = thumb; loading.value = false; }
     try {
       const full = await heicUrl(p.nodeUid);
@@ -148,8 +188,12 @@ async function show() {
       if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
   } else {
-    const u = await thumbUrl(p.nodeUid);
-    if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+    try {
+      const u = await thumbUrl(p.nodeUid);
+      if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+    } catch {
+      if (current.value?.nodeUid === p.nodeUid) loading.value = false;
+    }
   }
   // Live Photo: auto-play its motion clip once the still is up.
   if (p.motionUid && !p.isVideo) {
@@ -157,7 +201,7 @@ async function show() {
     try {
       const src = await motionUrl(p.motionUid);
       if (current.value?.nodeUid === p.nodeUid) { liveSrc.value = src; livePlaying.value = !!src; }
-    } finally {
+    } catch { /* still photo stays up without motion */ } finally {
       if (current.value?.nodeUid === p.nodeUid) liveLoading.value = false;
     }
   }
@@ -204,7 +248,9 @@ function onTouchEnd(e: TouchEvent) {
 const dialogEl = ref<HTMLElement | null>(null);
 let lastFocused: HTMLElement | null = null;
 
-watch(() => props.modelValue, show);
+// Watch the resolved photo, not just the index: after a removal the index can stay the same
+// while the photo at that position changes — the viewer still has to load the new one.
+watch(current, show);
 watch(open, (v) => {
   document.body.style.overflow = v ? 'hidden' : '';
   if (v) {
@@ -246,7 +292,52 @@ function caption(p: Photo | null): string {
       class="absolute inset-0 cursor-default"
       @click="close"
     />
-    <div class="absolute top-4 right-4 flex items-center gap-4 text-white/70">
+    <!-- z-10: keep the controls above the photo — a zoomed image (scale 2.2) otherwise slides
+         over these absolutely-positioned siblings and the caption line below it. -->
+    <div
+      class="absolute top-4 right-4 z-10 flex items-center gap-4 text-white/70"
+    >
+      <span
+        v-if="removeError"
+        class="text-sm text-red-400"
+        role="alert"
+      >{{ t('lightbox.removeFailed') }}</span>
+      <button
+        v-if="remove"
+        class="
+          flex items-center gap-1
+          disabled:opacity-40
+        "
+        :class="armed === 'remove' ? 'text-accent' : 'hover:text-accent'"
+        :disabled="removing"
+        :aria-label="armed === 'remove' ? t('lightbox.confirmRemove') : t('lightbox.removeFromAlbum')"
+        :title="armed === 'remove' ? t('lightbox.confirmRemove') : t('lightbox.removeFromAlbum')"
+        @click="removePhoto(false)"
+      >
+        <IconRemove class="size-5" />
+        <span
+          v-if="armed === 'remove'"
+          class="text-sm"
+        >{{ t('lightbox.confirmClick') }}</span>
+      </button>
+      <button
+        v-if="remove"
+        class="
+          flex items-center gap-1
+          disabled:opacity-40
+        "
+        :class="armed === 'trash' ? 'text-red-400' : 'hover:text-red-400'"
+        :disabled="removing"
+        :aria-label="armed === 'trash' ? t('lightbox.confirmTrash') : t('lightbox.trash')"
+        :title="armed === 'trash' ? t('lightbox.confirmTrash') : t('lightbox.trash')"
+        @click="removePhoto(true)"
+      >
+        <IconTrash class="size-5" />
+        <span
+          v-if="armed === 'trash'"
+          class="text-sm"
+        >{{ t('lightbox.confirmClick') }}</span>
+      </button>
       <button
         v-if="current?.motionUid && !current?.isVideo"
         :class="livePlaying ? 'text-accent' : 'hover:text-accent'"
@@ -287,7 +378,7 @@ function caption(p: Photo | null): string {
     <button
       v-if="modelValue! > 0"
       class="
-        absolute left-3 px-2 text-4xl leading-none text-white/70
+        absolute left-3 z-10 px-2 text-4xl leading-none text-white/70
         hover:text-white
         sm:left-6
       "
@@ -379,7 +470,12 @@ function caption(p: Photo | null): string {
         />
         <span class="text-sm">{{ current?.isVideo ? t('lightbox.loadingVideo') : current?.isHeic ? t('lightbox.decodingHeic') : t('lightbox.decrypting') }}</span>
       </div>
-      <div class="text-sm text-white/60 tabular-nums">
+      <!-- Hidden while zoomed: the enlarged image extends under this line, which otherwise
+           paints on top of the photo. -->
+      <div
+        v-show="!zoomed"
+        class="text-sm text-white/60 tabular-nums"
+      >
         {{ (modelValue ?? 0) + 1 }} / {{ photos.length }}<span v-if="caption(current)"> · {{ caption(current) }}</span>
       </div>
     </div>
@@ -387,7 +483,7 @@ function caption(p: Photo | null): string {
     <button
       v-if="modelValue! < photos.length - 1"
       class="
-        absolute right-3 px-2 text-4xl leading-none text-white/70
+        absolute right-3 z-10 px-2 text-4xl leading-none text-white/70
         hover:text-white
         sm:right-6
       "

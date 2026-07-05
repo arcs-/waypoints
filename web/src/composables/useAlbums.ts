@@ -69,9 +69,12 @@ async function load(sdk: Sdk) {
     albums.value = out;
     loaded = true;
 
-    // Resolve real first-image dates in the background, then re-sort.
+    // Resolve real first-image dates in the background, then re-sort. One album failing
+    // (network hiccup) must not kill the scan — it keeps its lastActivityTime fallback.
     (async () => {
-      for (const a of out) a.date = await firstImageDate(sdk, a);
+      for (const a of out) {
+        try { a.date = await firstImageDate(sdk, a); } catch { /* keep null */ }
+      }
       sortByDate(out);
       albums.value = [...out];
     })();

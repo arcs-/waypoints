@@ -8,7 +8,7 @@ import { i18n } from './i18n';
 import './composables/useTheme'; // sets <html data-theme> before mount (no flash)
 import './assets/styles.css';
 import 'leaflet/dist/leaflet.css';
-import { syncWindowTitle } from './lib/windowTitle';
+import { syncWindowTitle } from './lib/host';
 import { listenForNativeLocale } from './lib/nativeLocale';
 
 syncWindowTitle();        // desktop only: album name → native window title (no-op in a browser)

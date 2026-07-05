@@ -1,5 +1,6 @@
 import { ref, shallowRef } from 'vue';
 import { initProton, type Proton } from '@/proton/client';
+import { openExternal } from '@/lib/host';
 
 // Singleton Proton session shared across the app.
 const proton = shallowRef<Proton | null>(null);
@@ -34,15 +35,10 @@ export function useProton() {
     busy.value = true; error.value = null;
     try {
       await proton.value.auth.authViaWeb(async (signInUrl: string) => {
-        // In the Tauri desktop shell, window.open is swallowed — open Proton's sign-in in the
-        // system browser instead. The SDK polls the fork by selector, so login completing in an
-        // external browser still resolves here. In a real browser, keep the popup.
-        if ('__TAURI_INTERNALS__' in window) {
-          const { openUrl } = await import('@tauri-apps/plugin-opener');
-          await openUrl(signInUrl);
-        } else {
-          window.open(signInUrl, '_blank', 'width=520,height=720');
-        }
+        // Proton's sign-in opens outside the app (system browser on desktop, popup in a
+        // browser). The SDK polls the fork by selector, so login completing in an external
+        // window still resolves here.
+        await openExternal(signInUrl, 'width=520,height=720');
       });
       loggedIn.value = true;
     } catch (e) {
