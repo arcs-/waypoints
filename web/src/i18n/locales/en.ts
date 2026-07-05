@@ -56,6 +56,7 @@ export default {
     note: 'Note for this stop',
     live: 'Live',
     mapRegion: 'Map of trip locations',
+    resizeMap: 'Resize the map (drag or arrow keys; double-click to reset)',
     viewPhoto: 'View photo {j} of {n}',
     viewVideo: 'View video {j} of {n}',
     readingMetadata: 'Reading photo metadata…',

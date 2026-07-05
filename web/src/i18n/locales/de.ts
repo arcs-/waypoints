@@ -56,6 +56,7 @@ export default {
     note: 'Notiz zu diesem Halt',
     live: 'Live',
     mapRegion: 'Karte der Reiseorte',
+    resizeMap: 'Kartenbreite anpassen (ziehen oder Pfeiltasten; Doppelklick setzt zurück)',
     viewPhoto: 'Foto {j} von {n} ansehen',
     viewVideo: 'Video {j} von {n} ansehen',
     readingMetadata: 'Foto-Metadaten werden gelesen…',

@@ -35,6 +35,50 @@ async function onRemovePhoto(p: Photo, trash: boolean) {
   if (album.value) await removePhoto(album.value, p, trash);
 }
 
+// Resizable map column (desktop only): drag the divider on the map's left edge, arrow keys
+// when it's focused, double-click to reset. Width is a percent of the container, clamped so
+// neither pane collapses; null keeps the responsive Tailwind defaults. Deliberately not
+// persisted — every visit starts from the defaults.
+const MAP_W_MIN = 22;
+const MAP_W_MAX = 55;
+const MAP_W_DEFAULT = 36; // ≈ the responsive grid defaults; only the keyboard path needs a number
+function clampMapW(v: number): number | null {
+  return Number.isFinite(v) && v > 0 ? Math.min(MAP_W_MAX, Math.max(MAP_W_MIN, v)) : null;
+}
+const bodyEl = ref<HTMLElement | null>(null);
+const mapW = ref<number | null>(null);
+// Inline style wins over the md:/lg: grid classes; inert on mobile where the container is flex.
+const gridStyle = computed(() =>
+  mapW.value != null ? { gridTemplateColumns: `minmax(0, 1fr) ${mapW.value}%` } : undefined);
+
+let dragging = false;
+function onDividerDown(e: PointerEvent) {
+  dragging = true;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  document.body.style.userSelect = 'none'; // no text selection while dragging across the feed
+}
+function onDividerMove(e: PointerEvent) {
+  if (!dragging || !bodyEl.value) return;
+  const r = bodyEl.value.getBoundingClientRect();
+  // ?? MIN: dragging past the right edge yields ≤0, which clampMapW treats as "no value".
+  mapW.value = clampMapW(((r.right - e.clientX) / r.width) * 100) ?? MAP_W_MIN;
+}
+function onDividerUp() {
+  if (!dragging) return;
+  dragging = false;
+  document.body.style.userSelect = '';
+}
+function onDividerKey(e: KeyboardEvent) {
+  const base = mapW.value ?? MAP_W_DEFAULT;
+  if (e.key === 'ArrowLeft') mapW.value = clampMapW(base + 2); // divider left = map grows
+  else if (e.key === 'ArrowRight') mapW.value = clampMapW(base - 2);
+  else return;
+  e.preventDefault();
+}
+function resetMapW() {
+  mapW.value = null;
+}
+
 // Reading photo metadata is expensive and not resumable — guard against leaving mid-build.
 function beforeUnload(e: BeforeUnloadEvent) {
   if (!building.value) return;
@@ -125,14 +169,17 @@ onBeforeRouteLeave(() => (building.value ? window.confirm(t('album.leaveWarning'
     </RouterLink>
   </div>
 
-  <!-- Body scrolls the whole page. Mobile: map on top; Desktop: map sticky beside the feed. -->
+  <!-- Body scrolls the whole page. Mobile: map on top; Desktop: map sticky beside the feed,
+       its width adjustable via the divider on the map's left edge. -->
   <div
     v-else-if="manifest"
+    ref="bodyEl"
     class="
       flex flex-col-reverse
-      md:grid md:grid-cols-[1.7fr_1fr] md:items-start
-      lg:grid-cols-[1.6fr_1fr]
+      md:grid md:grid-cols-[1.9fr_1fr] md:items-start
+      lg:grid-cols-[1.8fr_1fr]
     "
+    :style="gridStyle"
   >
     <PhotoFeed
       :manifest="manifest"
@@ -150,6 +197,35 @@ onBeforeRouteLeave(() => (building.value ? window.confirm(t('album.leaveWarning'
         dark:border-neutral-800
       "
     >
+      <!-- Drag handle: a 12px hit area straddling the column border (the sticky wrapper is the
+           positioned ancestor). The accent line on hover/focus is the affordance. The a11y rule
+           below doesn't recognize role="separator", but a focusable separator IS interactive
+           (the ARIA window-splitter pattern). -->
+      <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        :aria-label="t('album.resizeMap')"
+        :aria-valuenow="Math.round(mapW ?? MAP_W_DEFAULT)"
+        :aria-valuemin="MAP_W_MIN"
+        :aria-valuemax="MAP_W_MAX"
+        tabindex="0"
+        class="
+          absolute inset-y-0 -left-1.5 z-20 hidden w-3 cursor-col-resize
+          touch-none outline-none
+          after:absolute after:inset-y-0 after:left-[5px] after:w-0.5
+          after:bg-transparent after:transition-colors
+          hover:after:bg-accent
+          focus-visible:after:bg-accent
+          md:block
+        "
+        @pointerdown="onDividerDown"
+        @pointermove="onDividerMove"
+        @pointerup="onDividerUp"
+        @pointercancel="onDividerUp"
+        @keydown="onDividerKey"
+        @dblclick="resetMapW"
+      />
       <RouteMap
         :manifest="manifest"
         :highlight="hovered"

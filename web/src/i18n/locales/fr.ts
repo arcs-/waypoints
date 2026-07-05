@@ -56,6 +56,7 @@ export default {
     note: 'Note pour cette étape',
     live: 'Live',
     mapRegion: 'Carte des lieux du voyage',
+    resizeMap: 'Redimensionner la carte (glisser ou flèches ; double-clic pour réinitialiser)',
     viewPhoto: 'Voir la photo {j} sur {n}',
     viewVideo: 'Voir la vidéo {j} sur {n}',
     readingMetadata: 'Lecture des métadonnées photo…',

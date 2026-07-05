@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { useI18n } from 'vue-i18n';
 import { useThumbnails } from '@/composables/useThumbnails';
 import { useTheme } from '@/composables/useTheme';
+import { prefetchTiles, viewportBounds } from '@/lib/tilePrefetch';
 import type { Manifest, Photo } from '@/lib/types';
 
 const props = defineProps<{ manifest: Manifest; highlight?: Photo | null; activeStop?: number | null }>();
@@ -12,6 +13,7 @@ const { thumbUrl } = useThumbnails();
 const { theme } = useTheme();
 const el = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
+let ro: ResizeObserver | null = null;
 let hl: L.Marker | null = null;
 let routeLine: L.Polyline | null = null;
 let dayLine: L.Polyline | null = null; // full-intensity overlay for the day being read
@@ -31,14 +33,13 @@ function addBasemap() {
   // Light/dark variants swap on theme toggle. Tiles need a key: set VITE_MAPTILER_KEY and
   // restrict it to this domain in the MapTiler dashboard (the key ships in the client).
   const key = import.meta.env.VITE_MAPTILER_KEY;
-  const styleId = theme.value === 'dark' ? 'outdoor-v2-dark' : 'outdoor-v2';
   baseLayers.push(
     // crossOrigin makes tiles CORS requests that send an `Origin` header (MapTiler returns
     // `access-control-allow-origin: *`, so this is safe). That's what the domain-locked key is
     // validated against. We can't rely on `Referer` alone: the packaged desktop build runs at
     // `tauri://localhost`, and that scheme doesn't send a Referer to https hosts — so tiles would
     // be rejected without this. referrerPolicy is kept for browsers (never leak the album path).
-    L.tileLayer(`https://api.maptiler.com/maps/${styleId}/{z}/{x}/{y}.png?key=${key}`, {
+    L.tileLayer(`https://api.maptiler.com/maps/${styleId()}/{z}/{x}/{y}.png?key=${key}`, {
       maxNativeZoom: 20,
       maxZoom: 20,
       crossOrigin: 'anonymous',
@@ -50,6 +51,22 @@ function addBasemap() {
 // Route line color per theme: the accent yellow washes out against the light outdoor tiles,
 // so light mode draws the line black; dark mode keeps the accent.
 const routeColor = () => (theme.value === 'dark' ? '#ffd168' : '#333');
+const styleId = () => (theme.value === 'dark' ? 'outdoor-v2-dark' : 'outdoor-v2');
+
+// Destination zoom of the scroll-follow flyTo: ~4 levels closer than the overview, kept in a
+// readable band (15–17) — but never BELOW the overview: a small tour's fitBounds already sits
+// above the band, and clamping down would zoom out on scroll. Shared with the prefetcher so
+// the warmed tiles are exactly the ones the fly will land on.
+const stopZoom = () => Math.max(Math.min(Math.max(overviewZoom + 4, 15), 17), overviewZoom);
+
+// Warm the tiles of the stop the reader is heading toward (the one after the active stop; the
+// first stop when still at the overview) while the current view is idle.
+function prefetchNextStop(active: number | null) {
+  const next = props.manifest.stops[active == null ? 0 : active + 1];
+  if (!map || next?.lat == null) return;
+  const { x, y } = map.getSize();
+  prefetchTiles(viewportBounds(next.lat, next.lng!, stopZoom(), x, y), stopZoom(), styleId());
+}
 
 function stopIcon(url: string | null, label: number): L.DivIcon {
   const img = url ? `<img src="${url}" alt="" />` : '';
@@ -69,6 +86,11 @@ onMounted(() => {
   if (!el.value) return;
   map = L.map(el.value, { zoomControl: false, attributionControl: false });
   addBasemap();
+
+  // Leaflet only watches window resizes; the album view's column divider changes this
+  // container's width without one, so refresh the map's notion of its size ourselves.
+  ro = new ResizeObserver(() => map?.invalidateSize({ pan: false }));
+  ro.observe(el.value);
 
   if (props.manifest.route.length) {
     routeLine = L.polyline(props.manifest.route, { color: routeColor(), weight: 3, opacity: 0.95 }).addTo(map);
@@ -141,18 +163,13 @@ watch(() => props.activeStop, (i) => {
   if (!map) return;
   stopMarkers.forEach((m, idx) => m.getElement()?.classList.toggle('mm-active', idx === i));
   emphasiseDay(i);
+  prefetchNextStop(i ?? null);
   if (i == null) {
     if (props.manifest.bounds) map.flyToBounds(props.manifest.bounds, { padding: [50, 50], duration: 0.6 });
     return;
   }
   const s = props.manifest.stops[i];
-  if (s?.lat != null) {
-    // ~4 levels closer than the overview, kept in a readable band (15–17) — but never BELOW
-    // the overview: a small tour's fitBounds already sits above the band, and clamping down
-    // would zoom out on scroll.
-    const closer = Math.max(Math.min(Math.max(overviewZoom + 4, 15), 17), overviewZoom);
-    map.flyTo([s.lat, s.lng!], closer, { duration: 0.6 });
-  }
+  if (s?.lat != null) map.flyTo([s.lat, s.lng!], stopZoom(), { duration: 0.6 });
 });
 
 // Hovering a photo in the feed pops it on the map at its location.
@@ -165,7 +182,10 @@ watch(() => props.highlight, async (p) => {
   if (props.highlight === p && hl) hl.setIcon(hlIcon(url));
 });
 
-onBeforeUnmount(() => map?.remove());
+onBeforeUnmount(() => {
+  ro?.disconnect();
+  map?.remove();
+});
 </script>
 
 <template>
