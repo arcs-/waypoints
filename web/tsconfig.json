@@ -4,7 +4,9 @@
     "jsx": "preserve",
     "paths": {
       "@/*": ["./src/*"],
-      "@protontech/drive-sdk/protonDrivePhotosClient": ["./node_modules/@protontech/drive-sdk/dist/protonDrivePhotosClient"]
+      "@protontech/drive-sdk/protonDrivePhotosClient": ["../proton-sdk/client/js/src/protonDrivePhotosClient.ts"],
+      "@protontech/drive-sdk/diagnostic": ["../proton-sdk/client/js/src/diagnostic/index.ts"],
+      "@protontech/drive-sdk": ["../proton-sdk/client/js/src/index.ts"]
     }
   },
   "include": ["src", "*.ts"]

@@ -107,7 +107,7 @@ watch(pct, update);
       {{ label }}<span
         v-if="total"
         class="tabular-nums"
-      > · {{ progress }} / {{ total }}</span>
+      > &nbsp; {{ progress }} / {{ total }}</span>
     </div>
   </div>
 </template>

@@ -5,42 +5,26 @@ them locally, and lays each trip out as a timeline of stops on a map.
 
 ![Waypoints](docs/screenshot.png)
 
-## Constraints
+## Concept
 
-- **No backend.** Albums are read and decrypted client-side; per-album manifests are cached back
-  into Proton Drive under `/.waypoints/`. There is no server or database.
-- **Personal & single-user.** Built for one account and a handful of albums.
+- **No backend.** Albums are read and decrypted client-side; per-album data is cached back into
+  Proton Drive under `/.waypoints/`. Personal and single-user by design.
 - **Desktop (Tauri), not a website — for now.** Proton's API only accepts browser calls from
-  allowlisted origins. The Tauri webview runs at `tauri://localhost`, which Proton allows; an
-  arbitrary web domain isn't allowed, so there's no hosted web version yet.
-- **Talks only to Proton and MapTiler** — both European, privacy-respecting. No analytics, CDNs,
-  or web fonts. (Exception: the desktop app asks GitHub's public releases feed — at most once a
-  day — whether a newer version exists; nothing is sent beyond the request itself.)
-- **Vendored, pre-production SDK.** Uses the unstable `@protontech/drive-sdk` (vendored under
-  `proton-sdk/`); breakage on Proton's side is expected and fixed by hand. Provenance, local
-  patches, and the update procedure are documented in [`proton-sdk/VENDORED.md`](proton-sdk/VENDORED.md).
+  allowlisted origins. The Tauri webview (`tauri://localhost`) is allowed; an arbitrary web
+  domain isn't.
+- **Talks to few hosts, all listed below.** No analytics, CDNs, or web fonts.
+- **Vendored, pre-production SDK.** The unstable `@protontech/drive-sdk` lives under
+  `proton-sdk/`; provenance, local patches, and how to update it are in
+  [`proton-sdk/VENDORED.md`](proton-sdk/VENDORED.md).
 
 ## External dependencies
 
-- **Proton Drive** (`drive-api.proton.me`) — the albums, in-browser end-to-end decryption, and the
-  manifest cache. Sign-in opens Proton in the system browser (session fork).
-- **MapTiler** (`api.maptiler.com`) — map tiles (`outdoor` style: relief + labels, light/dark) and
-  reverse geocoding. European, GDPR-focused. Needs an API key (`VITE_MAPTILER_KEY`) whose allowed
-  origins include `tauri://localhost` (and `http://localhost:5174` for dev).
+| Service | Used for | Key |
+|---|---|---|
+| [Proton Drive](https://proton.me/drive) | albums, client-side decryption, manifest cache | your account |
+| [Protomaps](https://protomaps.com) | vector basemap (OpenStreetMap data) | `VITE_PROTOMAPS_KEY`, free |
+| [Mapterhorn](https://mapterhorn.com) | terrain hillshade | — |
+| [Photon](https://photon.komoot.io) | stop names (reverse geocoding) | — |
+| GitHub releases | update check, desktop only, at most once a day | — |
 
-Stack: Vue 3 + Vite + Tailwind v4, Leaflet, vue-i18n (en/de/fr), Tauri v2.
-
-## Run
-
-Requires [bun](https://bun.sh) and the [Rust toolchain](https://rustup.rs) (macOS/Linux — Windows'
-webview origin isn't allowlisted by Proton).
-
-```sh
-cd web
-cp .env.example .env   # set VITE_MAPTILER_KEY
-bun install
-bun run app            # desktop app, hot-reload  (bun run dev for the raw web build)
-```
-
-Releases: see [`docs/RELEASING.md`](docs/RELEASING.md) for where the version lives and how a
-release is cut.
+Releases: [`docs/RELEASING.md`](docs/RELEASING.md).

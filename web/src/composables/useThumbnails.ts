@@ -1,4 +1,5 @@
 import { ThumbnailType } from '@protontech/drive-sdk';
+import { renderableHeic } from '@/lib/heic';
 import { useProton } from './useProton';
 
 // Decrypts album thumbnails in-browser (via the SDK) into blob URLs, cached by nodeUid.
@@ -15,8 +16,9 @@ function slot(): Promise<void> {
 }
 function release() { active--; queue.shift()?.(); }
 
-// Proton returns HEIC photos' thumbnails still HEIC-encoded, which browsers can't render —
-// detect the ISOBMFF 'ftyp' + HEIC brand and decode to JPEG. (AVIF renders natively, so skip it.)
+// Proton returns HEIC photos' thumbnails still HEIC-encoded — detect the ISOBMFF 'ftyp' +
+// HEIC brand and hand them to renderableHeic (native <img> where the engine can, WASM→JPEG
+// where it can't). (AVIF renders natively everywhere we run, so skip it.)
 const HEIC_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'heif', 'hevc', 'hevx', 'mif1', 'msf1', 'miff']);
 function isHeicBytes(b: Uint8Array): boolean {
   if (b.length < 12) return false;
@@ -25,9 +27,8 @@ function isHeicBytes(b: Uint8Array): boolean {
 }
 
 async function toBlob(bytes: Uint8Array): Promise<Blob> {
-  if (!isHeicBytes(bytes)) return new Blob([bytes as BlobPart]);
-  const { heicTo } = await import('heic-to'); // lazy: WASM only when a HEIC thumbnail shows up
-  return heicTo({ blob: new Blob([bytes as BlobPart]), type: 'image/jpeg', quality: 0.85 });
+  const blob = new Blob([bytes as BlobPart]);
+  return isHeicBytes(bytes) ? renderableHeic(blob, 0.85) : blob;
 }
 
 export function useThumbnails() {

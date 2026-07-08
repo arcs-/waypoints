@@ -7,7 +7,7 @@ import type { Photo, StoredAlbum } from '@/lib/types';
 
 // Source of truth + cache: one JSON per album in Proton /.waypoints/<slug>.json.
 // Reading it skips the expensive per-photo EXIF reads + reverse-geocoding.
-const VERSION = 7; // bump to invalidate caches when the manifest shape changes
+const VERSION = 9; // bump to invalidate caches when the manifest shape changes
 const session = new Map<string, StoredAlbum>(); // in-memory cache for this tab
 
 const countPhotos = (a: StoredAlbum) => a.stops.reduce((n, s) => n + s.photos.length, 0);

@@ -1,7 +1,9 @@
 /// <reference types="vite/client" />
 interface ImportMetaEnv {
-  /** MapTiler API key for the basemap tiles. Restrict it to this domain in the MapTiler dashboard. */
+  /** MapTiler API key — reverse geocoding only. Restrict it to this domain in the MapTiler dashboard. */
   readonly VITE_MAPTILER_KEY: string;
+  /** Protomaps API key for the vector basemap. Set allowed origins in the Protomaps portal. */
+  readonly VITE_PROTOMAPS_KEY: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

@@ -254,8 +254,9 @@ function gridClass(n: number): string {
           />
           <span
             class="
-              rounded-full bg-accent px-2.5 py-1 text-sm font-medium
-              tracking-wider text-black
+              rounded-full bg-accent/25 px-2.5 py-1 text-sm font-medium
+              tracking-wider text-neutral-700
+              dark:bg-accent/15 dark:text-accent
             "
           >{{ dateTag(0) }}</span>
         </div>
@@ -285,8 +286,9 @@ function gridClass(n: number): string {
           <span
             v-if="isNewDay(i)"
             class="
-              rounded-full bg-accent px-2.5 py-1 text-sm font-medium
-              tracking-wider text-black
+              rounded-full bg-accent/25 px-2.5 py-1 text-sm font-medium
+              tracking-wider text-neutral-700
+              dark:bg-accent/15 dark:text-accent
             "
           >{{ dateTag(i) }}</span>
           <span
@@ -475,9 +477,11 @@ function gridClass(n: number): string {
         :to="{ name: 'overview' }"
         :aria-label="t('controls.allTrips')"
         class="
-          rounded-full bg-accent px-2.5 py-1 text-sm font-medium tracking-wider
-          text-black transition
-          hover:brightness-110
+          rounded-full bg-accent/25 px-2.5 py-1 text-sm font-medium
+          tracking-wider text-neutral-700 transition
+          hover:bg-accent/40
+          dark:bg-accent/15 dark:text-accent
+          dark:hover:bg-accent/25
         "
       >
         {{ t('album.end') }}

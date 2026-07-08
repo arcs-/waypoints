@@ -1,6 +1,6 @@
 [package]
 name = "Waypoints"
-version = "0.1.4"
+version = "0.1.5"
 description = "A private, browser-only view of Proton Photos albums as map timelines"
 authors = ["Patrick Stillhart"]
 repository = "https://github.com/arcs-/waypoints"

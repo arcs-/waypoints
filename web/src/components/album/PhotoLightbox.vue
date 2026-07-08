@@ -5,6 +5,7 @@ import { useProton } from '@/composables/useProton';
 import { useI18n } from 'vue-i18n';
 import { useMotion } from '@/composables/useMotion';
 import { playableVideoUrl } from '@/lib/videoUrl';
+import { renderableHeic } from '@/lib/heic';
 import IconLivePhoto from '@/components/icons/IconLivePhoto.vue';
 import IconDownload from '@/components/icons/IconDownload.vue';
 import IconRemove from '@/components/icons/IconRemove.vue';
@@ -70,18 +71,18 @@ async function removePhoto(trash: boolean) {
 
 function onLiveCanPlay(e: Event) { (e.target as HTMLVideoElement).play().catch(() => { /* ignore */ }); }
 
-// Pre-size the still to the exact box the full-res decode will occupy: contain-fit into
+// Pre-size the still to the exact box the full-res upgrade will occupy: contain-fit into
 // 92vw × 80vh depends only on the aspect ratio, known up front from EXIF (manifest `ar`) and
 // corrected from the thumbnail's real pixels once it loads. The thumb upscales into that box,
-// so the swap to full resolution happens in place — no layout jump. Only HEIC gets this:
-// other photos never upgrade, so their thumbnail keeps its natural size.
+// so the swap to full resolution happens in place — no layout jump. Every photo upgrades now
+// (HEIC via decode, the rest via the original file), so every photo gets this.
 const arMeasured = ref<number | null>(null);
 function onStillLoad(e: Event) {
   const img = e.target as HTMLImageElement;
   if (img.naturalWidth && img.naturalHeight) arMeasured.value = img.naturalWidth / img.naturalHeight;
 }
 const stillBox = computed(() => {
-  if (!current.value?.isHeic) return undefined;
+  if (!current.value || current.value.isVideo) return undefined;
   const ar = arMeasured.value ?? current.value.ar;
   if (!ar) return undefined;
   return { aspectRatio: `${ar}`, width: `min(92vw, calc(80vh * ${ar}))` };
@@ -143,11 +144,19 @@ const heicCache = new Map<string, string>();
 async function heicUrl(nodeUid: string): Promise<string> {
   if (heicCache.has(nodeUid)) return heicCache.get(nodeUid)!;
   const blob = await fetchFull(nodeUid);
-  // heic-to uses a modern libheif that assembles iPhone's tiled/grid HEIC to full resolution.
-  const { heicTo } = await import('heic-to'); // lazy: WASM only when needed
-  const jpeg = await heicTo({ blob, type: 'image/jpeg', quality: 0.92 });
-  const u = URL.createObjectURL(jpeg);
+  // Native WebKit rendering keeps P3/HDR; the WASM decode is the sRGB fallback (see lib/heic).
+  const u = URL.createObjectURL(await renderableHeic(blob, 0.92));
   heicCache.set(nodeUid, u);
+  return u;
+}
+
+// Full-resolution upgrade for photos the browser decodes natively (JPEG/PNG…): the Type2
+// preview is ~1920px, which goes soft on a Retina-sized stage and softer under click-to-zoom.
+const fullUrlCache = new Map<string, string>();
+async function fullPhotoUrl(nodeUid: string): Promise<string> {
+  if (fullUrlCache.has(nodeUid)) return fullUrlCache.get(nodeUid)!;
+  const u = URL.createObjectURL(await fetchFull(nodeUid));
+  fullUrlCache.set(nodeUid, u);
   return u;
 }
 
@@ -188,9 +197,12 @@ async function show() {
       if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
   } else {
+    // Same thumb-first → original upgrade as HEIC; the preview swaps for the full file in place.
+    const thumb = await thumbUrl(p.nodeUid).catch(() => null);
+    if (current.value?.nodeUid === p.nodeUid && thumb) { url.value = thumb; loading.value = false; }
     try {
-      const u = await thumbUrl(p.nodeUid);
-      if (current.value?.nodeUid === p.nodeUid) { url.value = u; loading.value = false; }
+      const full = await fullPhotoUrl(p.nodeUid);
+      if (current.value?.nodeUid === p.nodeUid) { url.value = full; loading.value = false; }
     } catch {
       if (current.value?.nodeUid === p.nodeUid) loading.value = false;
     }
