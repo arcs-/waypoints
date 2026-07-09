@@ -1,5 +1,6 @@
 {
-  "name": "trips-web",
+  "name": "waypoints-web",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "scripts": {

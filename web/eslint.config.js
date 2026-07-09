@@ -23,12 +23,12 @@ export default tseslint.config(
   {
     files: ['**/*.{vue,ts}'],
     plugins: { 'better-tailwindcss': betterTailwind },
-    settings: { 'better-tailwindcss': { entryPoint: 'src/assets/styles.css' } },
+    settings: { 'better-tailwindcss': { entryPoint: 'src/app/assets/styles.css' } },
     rules: {
       ...betterTailwind.configs.recommended.rules,
-      // Intentional non-Tailwind classes: Leaflet-injected marker DOM (mm-*/leaflet-*)
+      // Intentional non-Tailwind classes: MapLibre marker DOM built in JS (mm-*)
       // and the scoped keyframe loader in LoadingRoute (trace-*). Not typos.
-      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^mm-', '^leaflet-', '^trace-'] }],
+      'better-tailwindcss/no-unknown-classes': ['error', { ignore: ['^mm-', '^trace-'] }],
     },
   },
 

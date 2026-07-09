@@ -13,7 +13,7 @@ stall in Firefox on macOS: `readyState=0`, `networkState=2` ("loading"), no meta
   zero app code), with and without the fast-start rewrite.
 - **moov-at-end** — fast-start rewrite (moov before mdat, stco/co64 offsets patched,
   `qt  `→`mp42` rebrand) is applied and verified correct in Chrome; stall persists.
-  The rewrite is now the permanent policy in `src/lib/videoUrl.ts` (deterministic:
+  The rewrite is now the permanent policy in `src/domain/media/videoUrl.ts` (deterministic:
   `faststart()` returns null when not applicable — no playback probe).
 - **Blob→`<video>` pipeline, blob MIME** — rewritten blob is typed `video/mp4`; plays standalone.
 - **Referrer meta** — added `no-referrer` to the standalone page; still plays.
@@ -125,7 +125,7 @@ setTimeout(() => console.info('(2s mark — if no OK above, it hangs)'), 2000);
 
 - `public/mediatest.html` — standalone isolation page (codec matrix, WebM generator, file
   picker with optional fast-start). Kept. Open at `/mediatest.html`.
-- `src/lib/videoUrl.ts` — production fast-start rewrite (probes and forced-mode logging removed).
+- `src/domain/media/videoUrl.ts` — production fast-start rewrite (probes and forced-mode logging removed).
 - All other instrumentation (imperative-src attach, event logging in `PhotoLightbox.vue`,
   `src/lib/videoDebug.ts` control/fetch/WebM probes gated on `localStorage.wpVideoDebug`) was
   removed 2026-07-04; recoverable from git history or reconstructable from the snippets above.
