@@ -1,18 +1,45 @@
 name: Release desktop app
 
-# Runs when you publish a GitHub Release. It builds the Tauri app and attaches the
-# installers to that same release. (Create/publish the release in the GitHub UI on a tag
-# like `v0.2.0`; keep that version in sync with web/package.json — the single version source.)
+# Releasing = bumping "version" in web/package.json (the single version source) and pushing
+# to main. The version job reads it; if the tag v<version> doesn't exist yet, the build job
+# creates the tag + GitHub Release and attaches the installers. Pushes that touch
+# web/package.json without bumping (dep changes) no-op at the cheap version job.
+#
+# NB: everything happens in ONE workflow on purpose — a release created here with the
+# default GITHUB_TOKEN would not trigger a separate `on: release` workflow (GitHub blocks
+# workflow→workflow recursion), so tauri-action creates the release itself.
 on:
-  release:
-    types: [published]
-  workflow_dispatch: {} # allow manual runs from the Actions tab (no upload)
+  push:
+    branches: [main]
+    paths: [web/package.json]
+  workflow_dispatch: {} # manual run: releases the current version if its tag is missing
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Read version and check whether its tag already exists
+        run: |
+          version=$(jq -r .version web/package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "v$version already released — nothing to do."
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: version
+    if: needs.version.outputs.new == 'true'
     runs-on: macos-latest
     permissions:
-      contents: write # needed to upload assets to the release
+      contents: write # needed to create the release and upload assets
     steps:
       - uses: actions/checkout@v4
 
@@ -35,12 +62,13 @@ jobs:
         run: bun install
         working-directory: web
 
-      - name: Build app and upload to the release
+      - name: Build app, create the release, upload installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Inlined into the bundle at build time; add these as repo secrets (Settings → Secrets).
-          # Protomaps: the vector basemap — without it the map ships broken (403 on every tile).
+          # Protomaps: the vector basemap — without it the map ships broken (403 on every tile;
+          # web/vite.config.ts fails the build if it's missing).
           VITE_PROTOMAPS_KEY: ${{ secrets.VITE_PROTOMAPS_KEY }}
           # MapTiler: only used if geocode.ts is switched back to the MapTiler provider.
           VITE_MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
@@ -55,5 +83,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: web
-          releaseId: ${{ github.event.release.id }}
+          tagName: v${{ needs.version.outputs.version }}
+          releaseName: v${{ needs.version.outputs.version }}
+          releaseDraft: false # publish immediately — the in-app update check only sees published releases
           args: --target universal-apple-darwin
