@@ -104,7 +104,9 @@ pub fn run() {
 
         let about = AboutMetadataBuilder::new()
           .name(Some("Waypoints"))
-          .version(Some(env!("CARGO_PKG_VERSION")))
+          // Runtime package info carries the tauri.conf.json version, which reads
+          // ../package.json — the single version source (NOT Cargo.toml's, which is inert).
+          .version(Some(app.package_info().version.to_string()))
           .authors(Some(vec!["Patrick Stillhart".into()]))
           .comments(Some("A private, browser-only view of Proton Photos albums as map timelines."))
           .website(Some("https://stillh.art"))
